@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Nano Prompt API Demo</title>
+    <style>
+        /* Absolutely necessary CSS for basic readability and functionality */
+        .loading {
+            color: blue; /* Simple blue for loading */
+            font-style: italic;
+        }
+        .error {
+            color: red; /* Simple red for errors */
+            font-weight: bold;
+        }
+        #output {
+            margin-top: 1em; /* Basic spacing */
+            border: 1px solid black; /* Simple border for clarity */
+            padding: 0.5em; /* Basic padding */
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            word-wrap: break-word; /* Break long words */
+            height: 200px; /* Give it a fixed height */
+            overflow-y: auto; /* Allow scrolling if content overflows */
+        }
+        button:disabled {
+            background-color: #cccccc; /* Keep disabled state clear */
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gemini Nano Prompt API Demo</h1>
+        <p>
+            This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
+            Ensure you have enabled the necessary flags in <a href="chrome://flags">chrome://flags</a>:
+            <ul>
+                <li><code>#prompt-api-for-gemini-nano</code> (set to Enabled)</li>
+                <li><code>#optimization-guide-on-device-model</code> (set to Enabled BypassPrefRequirement)</li>
+                <li><code>#prompt-api-for-gemini-nano-multimodal-input</code> (for multimodal input)</li>
+                <li><code>#summarization-api-for-gemini-nano</code> (for summarization)</li>
+                <li><code>#writer-api-for-gemini-nano</code> (for writing)</li>
+                <li><code>#rewriter-api-for-gemini-nano</code> (for rewriting)</li>
+            </ul>
+            The Gemini Nano model might also need to be downloaded the first time you use it.
+        </p>
+
+        <div>
+            <button onclick="checkAvailability()">Check API Availability</button>
+            <button onclick="getParams()">Get Model Parameters</button>
+            <button id="createSessionBtn" onclick="createSession()">Create Language Model Session</button>
+            <button id="promptBtn" onclick="sendPrompt()" disabled>Send Simple Prompt</button>
+            <button id="streamPromptBtn" onclick="sendStreamingPrompt()" disabled>Send Streaming Prompt</button>
+            <hr> <!-- Separator for new buttons -->
+            <button id="multimodalPromptBtn" onclick="sendMultimodalPrompt()" disabled>Send Multimodal Prompt (Text Only)</button>
+            <button id="summarizeBtn" onclick="sendSummarizePrompt()" disabled>Summarize Text</button>
+            <button id="writeBtn" onclick="sendWritePrompt()" disabled>Write Content</button>
+            <button id="rewriteBtn" onclick="sendRewritePrompt()" disabled>Rewrite Text</button>
+        </div>
+
+        <h2>Output:</h2>
+        <pre id="output">No output yet. Click a button to begin.</pre>
+    </div>
+
+    <script>
+        // Global variable to hold the LanguageModel session
+        let languageModelSession = null;
+
+        // Get references to output and buttons
+        const outputDiv = document.getElementById('output');
+        const createSessionBtn = document.getElementById('createSessionBtn');
+        const promptBtn = document.getElementById('promptBtn');
+        const streamPromptBtn = document.getElementById('streamPromptBtn');
+        const multimodalPromptBtn = document.getElementById('multimodalPromptBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const writeBtn = document.getElementById('writeBtn');
+        const rewriteBtn = document.getElementById('rewriteBtn');
+
+        /**
+         * Displays a message in the output area.
+         * @param {string} message The message to display.
+         * @param {string} type The type of message (e.g., 'info', 'error', 'loading').
+         */
+        function displayOutput(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            let formattedMessage = `[${now}] ${message}`;
+            if (type === 'loading') {
+                outputDiv.innerHTML = `<span class="loading">${formattedMessage}</span>`;
+            } else if (type === 'error') {
+                outputDiv.innerHTML = `<span class="error">${formattedMessage}</span>`;
+            } else {
+                outputDiv.innerHTML = formattedMessage;
+            }
+            console.log(formattedMessage); // Also log to console for debugging
+        }
+
+        /**
+         * Checks the availability of the LanguageModel API.
+         */
+        async function checkAvailability() {
+            displayOutput('Checking LanguageModel API availability...');
+            try {
+                // LanguageModel is a global object provided by Chrome when flags are enabled.
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available (likely flags not enabled or Chrome version too old).', 'error');
+                    return;
+                }
+                const availability = await LanguageModel.availability();
+                displayOutput(`API Availability: ${availability}`);
+                // If downloadable, prompt to create session to trigger download.
+                if (availability === 'downloadable') {
+                    displayOutput('Model is downloadable. Click "Create Language Model Session" to initiate download.', 'info');
+                } else if (availability === 'available') {
+                    displayOutput('Model is available and ready for use.', 'info');
+                    createSessionBtn.disabled = false; // Enable session creation if model is available
+                }
+            } catch (error) {
+                displayOutput(`Error checking availability: ${error.message}`, 'error');
+                console.error('Error checking availability:', error);
+            }
+        }
+
+        /**
+         * Retrieves the default and maximum parameters for the LanguageModel.
+         */
+        async function getParams() {
+            displayOutput('Fetching LanguageModel parameters...');
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available.', 'error');
+                    return;
+                }
+                const params = await LanguageModel.params();
+                displayOutput('LanguageModel Parameters:\n' + JSON.stringify(params, null, 2));
+            } catch (error) {
+                displayOutput(`Error fetching parameters: ${error.message}`, 'error');
+                console.error('Error fetching parameters:', error);
+            }
+        }
+
+        /**
+         * Creates a new LanguageModel session.
+         * This might trigger a model download if it's not already available.
+         */
+        async function createSession() {
+            displayOutput('Creating LanguageModel session (this may take a while if model needs to download)...', 'loading');
+            createSessionBtn.disabled = true; // Disable button during session creation
+
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available.', 'error');
+                    createSessionBtn.disabled = false;
+                    return;
+                }
+
+                // Create a session with a monitor to track download progress
+                languageModelSession = await LanguageModel.create({
+                    monitor(m) {
+                        m.addEventListener("downloadprogress", (e) => {
+                            displayOutput(`Downloading model: ${((e.loaded / e.total) * 100).toFixed(2)}%`, 'loading');
+                        });
+                    }
+                });
+                displayOutput('LanguageModel session created successfully!');
+                // Enable all prompt buttons once session is ready
+                promptBtn.disabled = false;
+                streamPromptBtn.disabled = false;
+                multimodalPromptBtn.disabled = false;
+                summarizeBtn.disabled = false;
+                writeBtn.disabled = false;
+                rewriteBtn.disabled = false;
+            } catch (error) {
+                displayOutput(`Error creating session: ${error.message}`, 'error');
+                console.error('Error creating session:', error);
+                createSessionBtn.disabled = false; // Re-enable button on error
+            }
+        }
+
+        /**
+         * Sends a simple, non-streaming text prompt to the LanguageModel.
+         */
+        async function sendPrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const promptText = "Write a short, positive affirmation for the day.";
+            displayOutput(`Sending prompt (non-streaming): "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            try {
+                const result = await languageModelSession.prompt(promptText);
+                displayOutput(`Prompt Result (non-streaming):\n${result}`);
+            } catch (error) {
+                displayOutput(`Error sending prompt: ${error.message}`, 'error');
+                console.error('Error sending prompt:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Sends a streaming text prompt to the LanguageModel.
+         */
+        async function sendStreamingPrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const promptText = "Tell me a short story about a friendly robot exploring an ancient library. Make it at least 50 words.";
+            displayOutput(`Sending prompt (streaming): "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            let fullStory = '';
+            try {
+                const stream = languageModelSession.promptStreaming(promptText);
+                outputDiv.innerHTML = `<span class="loading">Streaming response...</span>\n`; // Clear and show loading
+
+                for await (const chunk of stream) {
+                    fullStory += chunk;
+                    outputDiv.innerHTML = `<span class="loading">Streaming response...</span>\n${fullStory}`; // Update with each chunk
+                    outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                }
+                displayOutput(`Streaming Prompt Complete:\n${fullStory}`); // Final display
+            } catch (error) {
+                displayOutput(`Error sending streaming prompt: ${error.message}`, 'error');
+                console.error('Error sending streaming prompt:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Sends a multimodal prompt (text only for this demo).
+         * Note: Full multimodal input (e.g., images) would require file input elements and base64 encoding.
+         */
+        async function sendMultimodalPrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const promptText = "Describe a sunny day at the beach, including the sounds and smells. (Simulated multimodal prompt - text only)";
+            displayOutput(`Sending multimodal prompt (text only): "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            try {
+                // The LanguageModel.prompt() method can handle parts array for multimodal input.
+                // For actual image input, you would convert an image file to base64 and include it like:
+                // parts: [{ text: "What is in this image?" }, { inlineData: { mimeType: "image/png", data: "BASE64_IMAGE_DATA" } }]
+                const result = await languageModelSession.prompt({
+                    parts: [{ text: promptText }]
+                });
+                displayOutput(`Multimodal Prompt Result (Text Only):\n${result}`);
+            } catch (error) {
+                displayOutput(`Error sending multimodal prompt: ${error.message}`, 'error');
+                console.error('Error sending multimodal prompt:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Sends a prompt for summarization.
+         * Note: While a specific Summarizer API flag exists, the current LanguageModel API
+         * typically handles this via a well-crafted text prompt.
+         */
+        async function sendSummarizePrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const textToSummarize = "The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
+            const promptText = `Summarize the following text: "${textToSummarize}"`;
+            displayOutput(`Sending summarization prompt: "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            try {
+                const result = await languageModelSession.prompt(promptText);
+                displayOutput(`Summarization Result:\n${result}`);
+            } catch (error) {
+                displayOutput(`Error summarizing text: ${error.message}`, 'error');
+                console.error('Error summarizing text:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Sends a prompt for writing content.
+         * Note: Similar to summarization, this is handled via a text prompt with the LanguageModel API.
+         */
+        async function sendWritePrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const promptText = "Write a short paragraph about the benefits of reading books.";
+            displayOutput(`Sending writing prompt: "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            try {
+                const result = await languageModelSession.prompt(promptText);
+                displayOutput(`Writing Result:\n${result}`);
+            } catch (error) {
+                displayOutput(`Error writing content: ${error.message}`, 'error');
+                console.error('Error writing content:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Sends a prompt for rewriting text.
+         * Note: This is also handled via a text prompt with the LanguageModel API.
+         */
+        async function sendRewritePrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error');
+                return;
+            }
+
+            const textToRewrite = "I went to the store and bought some apples.";
+            const promptText = `Rewrite the following sentence to sound more exciting: "${textToRewrite}"`;
+            displayOutput(`Sending rewriting prompt: "${promptText}"`, 'loading');
+            disableAllPromptButtons();
+
+            try {
+                const result = await languageModelSession.prompt(promptText);
+                displayOutput(`Rewriting Result:\n${result}`);
+            } catch (error) {
+                displayOutput(`Error rewriting text: ${error.message}`, 'error');
+                console.error('Error rewriting text:', error);
+            } finally {
+                enableAllPromptButtons();
+            }
+        }
+
+        /**
+         * Helper function to disable all prompt-related buttons during API calls.
+         */
+        function disableAllPromptButtons() {
+            promptBtn.disabled = true;
+            streamPromptBtn.disabled = true;
+            multimodalPromptBtn.disabled = true;
+            summarizeBtn.disabled = true;
+            writeBtn.disabled = true;
+            rewriteBtn.disabled = true;
+        }
+
+        /**
+         * Helper function to enable all prompt-related buttons after API calls.
+         */
+        function enableAllPromptButtons() {
+            if (languageModelSession) { // Only re-enable if a session exists
+                promptBtn.disabled = false;
+                streamPromptBtn.disabled = false;
+                multimodalPromptBtn.disabled = false;
+                summarizeBtn.disabled = false;
+                writeBtn.disabled = false;
+                rewriteBtn.disabled = false;
+            }
+        }
+
+        // Initial check on page load
+        window.onload = () => {
+            checkAvailability(); // Check API availability when the page loads
+        };
+    </script>
+</body>
+</html>
