@@ -1,17 +1,59 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini Nano Prompt API Demo</title>
     <style>
-        /* Basic browser default styles will now apply. */
+        /* Absolutely necessary CSS for basic readability and functionality */
+        .loading {
+            color: blue; /* Simple blue for loading */
+            font-style: italic;
+        }
+        .error {
+            color: red; /* Simple red for errors */
+            font-weight: bold;
+        }
+        #output {
+            margin-top: 1em; /* Basic spacing */
+            border: 1px solid black; /* Simple border for clarity */
+            padding: 0.5em; /* Basic padding */
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            word-wrap: break-word; /* Break long words */
+            height: 200px; /* Give it a fixed height */
+            overflow-y: auto; /* Allow scrolling if content overflows */
+        }
+        button:disabled {
+            background-color: #cccccc; /* Keep disabled state clear */
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 98%; /* Make textarea responsive */
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .metrics {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 0.5em;
+            border-top: 1px dashed #ccc;
+            padding-top: 0.5em;
+        }
+        #timerDisplay {
+            margin-top: 1em;
+            font-weight: bold;
+            color: #007bff; /* A distinct color for the timer */
+            min-height: 1.5em; /* Reserve space to prevent layout shift */
+        }
         .copy-container {
             display: flex;
             align-items: center;
             margin-top: 10px;
             margin-bottom: 20px;
-            max-width: 350px; /* Added: Make the container more compact */
+            max-width: 350px; /* Make the container more compact */
             margin-left: auto; /* Center the container if parent is wider */
             margin-right: auto; /* Center the container if parent is wider */
         }
@@ -34,7 +76,6 @@
             background-color: #0056b3;
         }
     </style>
-    <!-- The Inter font link is also removed as it's part of styling. -->
 </head>
 <body>
     <div class="container">
@@ -42,27 +83,28 @@
         <p>
             A starting point for a client-side, LLM in the browser, for online and offline Javascript use.<br>
             <h3> NOT YET FOR MOBILE, DO NOT TRY YET ON MOBILE!</h3>
-            By <a href="https://github.com/hpssjellis">Jeremy Ellis</a> uses at your risk<br>
+            By <a href="https://github.com/hpssjellis">Jeremy Ellis</a> uses at your own risk<br>
             Github for these gitpages at <a href="https://github.com/hpssjellis/my-examples-of-web-llm">https://github.com/hpssjellis/my-examples-of-web-llm</a><br>
             Main Demo index at <a href="https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html">https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html</a>
         </p>
-        <p >
+        <p>
             This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
             Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome Canary address bar:
             <input type="text" id="flagsLink" class="copy-input" value="chrome://flags" readonly>
             <button class="copy-button" onclick="copyFlagsLink()">Copy, and open a new tab</button><br>
             Then search for "optimization-guide-on-device-model" and then search for "gemini-nano"
         </p>
-
-        <ul>            
-            <li><code>#optimization-guide-on-device-model</code> (set to Enabled BypassPrefRequirement)</li><br>
-            <li><code>#prompt-api-for-gemini-nano</code> (set to Enabled)</li>
-            <li><code>#prompt-api-for-gemini-nano-multimodal-input</code> (set to Enabled)(for multimodal input)</li>
-            <li><code>#summarization-api-for-gemini-nano</code> (set to Enabled)(for summarization)</li>
-            <li><code>#writer-api-for-gemini-nano</code> (set to Enabled)(for writing)</li>
-            <li><code>#rewriter-api-for-gemini-nano</code> (set to Enabled)(for rewriting)</li>
-        </ul>
         <p>
+            This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
+            Ensure you have enabled the necessary flags in <a href="chrome://flags">chrome://flags</a>:
+            <ul>
+                <li><code>#optimization-guide-on-device-model</code> (set to Enabled BypassPrefRequirement)</li>
+                <li><code>#prompt-api-for-gemini-nano</code> (set to Enabled)</li>
+                <li><code>#prompt-api-for-gemini-nano-multimodal-input</code>(set to Enabled) (for multimodal input)</li>
+                <li><code>#summarization-api-for-gemini-nano</code>(set to Enabled) (for summarization)</li>
+                <li><code>#writer-api-for-gemini-nano</code>(set to Enabled) (for writing)</li>
+                <li><code>#rewriter-api-for-gemini-nano</code>(set to Enabled) (for rewriting)</li>
+            </ul>
             The Gemini Nano model will download the first time you use it. That will be about 4.0 GB of download and will need
             about 20 GB saving space for the final folders.
         </p>
@@ -129,12 +171,10 @@
             let formattedMessage = `[${now}] ${message}`;
             let content = '';
 
-            // Removed styling classes as per request.
-            // Type parameter can still be used for console logging if needed.
             if (type === 'loading') {
-                content = `${formattedMessage}`;
+                content = `<span class="loading">${formattedMessage}</span>`;
             } else if (type === 'error') {
-                content = `${formattedMessage}`;
+                content = `<span class="error">${formattedMessage}</span>`;
             } else {
                 content = formattedMessage;
             }
@@ -172,20 +212,20 @@
             try {
                 // LanguageModel is a global object provided by Chrome when flags are enabled.
                 if (typeof LanguageModel === 'undefined') {
-                    displayOutput('LanguageModel API is not available (likely flags not enabled or Chrome version too old).', 'error');
+                    displayOutput('LanguageModel API is not available (likely flags not enabled or Chrome version too old).', 'error', true); // Append error
                     return;
                 }
                 const availability = await LanguageModel.availability();
-                displayOutput(`API Availability: ${availability}`);
+                displayOutput(`API Availability: ${availability}`, 'info', true); // Append info
                 // If downloadable, prompt to create session to trigger download.
                 if (availability === 'downloadable') {
-                    displayOutput('Model is downloadable. Click "Create Language Model Session" to initiate download.', 'info');
+                    displayOutput('Model is downloadable. Click "Create Language Model Session" to initiate download.', 'info', true); // Append info
                 } else if (availability === 'available') {
-                    displayOutput('Model is available and ready for use.', 'info');
+                    displayOutput('Model is available and ready for use.', 'info', true); // Append info
                     createSessionBtn.disabled = false; // Enable session creation if model is available
                 }
             } catch (error) {
-                displayOutput(`Error checking availability: ${error.message}`, 'error');
+                displayOutput(`Error checking availability: ${error.message}`, 'error', true); // Append error
                 console.error('Error checking availability:', error);
             }
         }
@@ -198,13 +238,13 @@
             displayOutput('Fetching LanguageModel parameters...', 'info', false); // Replace for initial check
             try {
                 if (typeof LanguageModel === 'undefined') {
-                    displayOutput('LanguageModel API is not available.', 'error');
+                    displayOutput('LanguageModel API is not available.', 'error', true); // Append error
                     return;
                 }
                 const params = await LanguageModel.params();
-                displayOutput('LanguageModel Parameters:\n' + JSON.stringify(params, null, 2));
+                displayOutput('LanguageModel Parameters:\n' + JSON.stringify(params, null, 2), 'info', true); // Append info
             } catch (error) {
-                displayOutput(`Error fetching parameters: ${error.message}`, 'error');
+                displayOutput(`Error fetching parameters: ${error.message}`, 'error', true); // Append error
                 console.error('Error fetching parameters:', error);
             }
         }
@@ -215,12 +255,12 @@
          */
         async function createSession() {
             clearOutput(); // Clear previous output
-            displayOutput('Creating LanguageModel session (this may take a while if model needs to download)...', 'info', false); // Replace for initial check
+            displayOutput('Creating LanguageModel session (this may take a while if model needs to download)...', 'loading', false); // Replace for initial check
             createSessionBtn.disabled = true; // Disable button during session creation
 
             try {
                 if (typeof LanguageModel === 'undefined') {
-                    displayOutput('LanguageModel API is not available.', 'error');
+                    displayOutput('LanguageModel API is not available.', 'error', true); // Append error
                     createSessionBtn.disabled = false;
                     return;
                 }
@@ -229,17 +269,17 @@
                 languageModelSession = await LanguageModel.create({
                     monitor(m) {
                         m.addEventListener("downloadprogress", (e) => {
-                            // Update loading message with download progress
-                            displayOutput(`Downloading model: ${((e.loaded / e.total) * 100).toFixed(2)}%`, 'info', false);
+                            // Update loading message with download progress, replacing the previous progress
+                            displayOutput(`Downloading model: ${((e.loaded / e.total) * 100).toFixed(2)}%`, 'loading', false);
                         });
                     }
                 });
-                displayOutput('LanguageModel session created successfully! You can now prepare and execute prompts.', 'info', false); // Replace with final success message
+                displayOutput('LanguageModel session created successfully! You can now prepare and execute prompts.', 'info', true); // Append final success message
                 // Enable all prompt preparation buttons and the execute button
                 enableAllPreparationButtons();
                 executePromptBtn.disabled = false; // Enable execute button after session is ready
             } catch (error) {
-                displayOutput(`Error creating session: ${error.message}`, 'error', false); // Replace with error message
+                displayOutput(`Error creating session: ${error.message}`, 'error', true); // Append error
                 console.error('Error creating session:', error);
                 createSessionBtn.disabled = false; // Re-enable button on error
             }
@@ -280,7 +320,7 @@
             }
             promptInput.value = defaultText;
             currentPromptMode = { type: type, isStreaming: isStreaming };
-            displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', false); // Replace with new message
+            displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true); // Append new message
             executePromptBtn.disabled = false; // Ensure execute button is enabled after preparing
         }
 
@@ -290,17 +330,17 @@
          */
         async function executePrompt() {
             if (!languageModelSession) {
-                displayOutput('Please create a session first!', 'error', false);
+                displayOutput('Please create a session first!', 'error', true); // Append error
                 return;
             }
             if (!currentPromptMode.type) {
-                displayOutput('Please prepare a prompt first by clicking one of the "Prepare" buttons.', 'error', false);
+                displayOutput('Please prepare a prompt first by clicking one of the "Prepare" buttons.', 'error', true); // Append error
                 return;
             }
 
             const promptText = promptInput.value;
             if (!promptText.trim()) {
-                displayOutput('Prompt text cannot be empty!', 'error', false);
+                displayOutput('Prompt text cannot be empty!', 'error', true); // Append error
                 return;
             }
 
@@ -325,17 +365,18 @@
                         outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
                     }
 
+                    displayOutput(`Streaming Prompt Complete (${currentPromptMode.type}):\n${lastGeneratedText}`, 'info', true); // Append final text
+
                 } else {
                     // Non-streaming prompts
                     let result;
                     result = await languageModelSession.prompt(promptContent);
 
-                    outputDiv.textContent = result; // Display result directly
+                    displayOutput(`Prompt Result (${currentPromptMode.type}):\n${result}`, 'info', true); // Append final text
                     lastGeneratedText = result; // Store raw text for metrics
                 }
-                displayOutput(`Prompt Result (${currentPromptMode.type}):\n${lastGeneratedText}`, 'info', false); // Final message after generation
             } catch (error) {
-                displayOutput(`Error executing prompt: ${error.message}`, 'error', false); // Replace with error
+                displayOutput(`Error executing prompt: ${error.message}`, 'error', true); // Append error
                 console.error('Error executing prompt:', error);
                 lastGeneratedText = ''; // Clear generated text on error
             } finally {
@@ -374,7 +415,7 @@
             window.open('about:blank', '_blank');
 
             // Provide user feedback (optional, but good for UX)
-            displayOutput('Copied "chrome://flags" to clipboard and opened a new tab!', 'info', true);
+            displayOutput('Copied "chrome://flags" to clipboard and opened a new tab!', 'info', true); // Append info
         }
 
 
