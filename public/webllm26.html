@@ -172,22 +172,37 @@
          * Checks the availability of the LanguageModel API.
          */
         async function checkAvailability() {
-            displayOutput('Checking LanguageModel API availability...');
+            displayOutput('Checking API availability...');
             try {
-                // LanguageModel is a global object provided by Chrome when flags are enabled.
-                if (typeof LanguageModel === 'undefined') {
-                    displayOutput('LanguageModel API is not available (likely flags not enabled or Chrome version too old).', 'error');
-                    return;
+                let availabilityMessage = '';
+
+                // Check LanguageModel API
+                if (typeof LanguageModel !== 'undefined') {
+                    const lmAvailability = await LanguageModel.availability();
+                    availabilityMessage += `LanguageModel API: ${lmAvailability}\n`;
+                    if (lmAvailability === 'available') {
+                        createSessionBtn.disabled = false;
+                    }
+                } else {
+                    availabilityMessage += 'LanguageModel API: Not available (likely flags not enabled or Chrome version too old).\n';
                 }
-                const availability = await LanguageModel.availability();
-                displayOutput(`API Availability: ${availability}`);
-                // If downloadable, prompt to create session to trigger download.
-                if (availability === 'downloadable') {
-                    displayOutput('Model is downloadable. Click "Create Language Model Session" to initiate download.', 'info');
-                } else if (availability === 'available') {
-                    displayOutput('Model is available and ready for use.', 'info');
-                    createSessionBtn.disabled = false; // Enable session creation if model is available
+
+                // Check LanguageDetector API
+                if (typeof navigator.ai !== 'undefined' && typeof navigator.ai.LanguageDetector !== 'undefined') {
+                    availabilityMessage += 'LanguageDetector API: Available\n';
+                } else {
+                    availabilityMessage += 'LanguageDetector API: Not available (check chrome://flags for #language-detector-api-for-gemini-nano).\n';
                 }
+
+                // Check Translator API
+                if (typeof navigator.ai !== 'undefined' && typeof navigator.ai.Translator !== 'undefined') {
+                    availabilityMessage += 'Translator API: Available\n';
+                } else {
+                    availabilityMessage += 'Translator API: Not available (check chrome://flags for #translator-api-for-gemini-nano).\n';
+                }
+
+                displayOutput(availabilityMessage);
+
             } catch (error) {
                 displayOutput(`Error checking availability: ${error.message}`, 'error');
                 console.error('Error checking availability:', error);
@@ -294,8 +309,9 @@
          * Executes the prompt based on the current text in the textarea and the selected mode.
          */
         async function executePrompt() {
-            if (!languageModelSession && currentPromptMode.type !== 'detectLanguage' && currentPromptMode.type !== 'translateText') {
-                displayOutput('Please create a session first!', 'error');
+            // Check for LanguageModel session only if it's a LanguageModel-based operation
+            if (!languageModelSession && !['detectLanguage', 'translateText'].includes(currentPromptMode.type)) {
+                displayOutput('Please create a Language Model session first!', 'error');
                 return;
             }
             if (!currentPromptMode.type) {
@@ -321,17 +337,17 @@
             try {
                 let result;
                 if (currentPromptMode.type === 'detectLanguage') {
-                    if (typeof LanguageDetector === 'undefined') {
-                        throw new Error('LanguageDetector API is not available (check chrome://flags).');
+                    if (typeof navigator.ai === 'undefined' || typeof navigator.ai.LanguageDetector === 'undefined') {
+                        throw new Error('LanguageDetector API is not available (check chrome://flags for #language-detector-api-for-gemini-nano).');
                     }
-                    const detectedLanguages = await LanguageDetector.detect(promptText);
+                    const detectedLanguages = await navigator.ai.LanguageDetector.detect(promptText);
                     result = 'Detected Languages:\n' + JSON.stringify(detectedLanguages, null, 2);
                 } else if (currentPromptMode.type === 'translateText') {
-                    if (typeof Translator === 'undefined') {
-                        throw new Error('Translator API is not available (check chrome://flags).');
+                    if (typeof navigator.ai === 'undefined' || typeof navigator.ai.Translator === 'undefined') {
+                        throw new Error('Translator API is not available (check chrome://flags for #translator-api-for-gemini-nano).');
                     }
                     // For demo, hardcode English to Spanish. In a real app, you'd have language selectors.
-                    const translator = await Translator.create({ model: "en-es" });
+                    const translator = await navigator.ai.Translator.create({ model: "en-es" });
                     result = await translator.translate(promptText);
                     result = `Translated (EN to ES):\n${result}`;
                 } else if (currentPromptMode.isStreaming) {
