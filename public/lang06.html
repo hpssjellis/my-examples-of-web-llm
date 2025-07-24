@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Translator and Language Detector</title>
+    <!-- Language Detector API Origin Trial Token (if needed for older Chrome versions) -->
+    <!-- You might need an updated token if running outside a specific origin trial -->
+    <meta http-equiv="origin-trial" content="AsBU3QyUBL+Bp/ayVhXIzhF0+sBq5ScCkktyzBQ31GSnYzIQgfy218jUcgXkTaQPzivvIcyWPzLRQpk75rSi8g0AAABYeyJvcmlnaW4iOiJodHRwczovL2Nocm9tZS5kZXY6NDQzIiwiZmVhdHVyZSI6Ikxhbmd1YWdlRGV0ZWN0aW9uQVBJIiwiZXhwaXJ5IjoxNzQ5NTk5OTk5fQ==" />
+    <!-- Translator API Origin Trial Token (if needed for older Chrome versions) -->
+    <!-- You might need an updated token if running outside a specific origin trial -->
+    <meta http-equiv="origin-trial" content="Alo80bBNgwjo5MP2/xIIZHcgQxL9iqWFITM6NhdzlgCOzvmNng+WQ8ErO1k5ch7+P168yxsSmMGYdJ0MPqWauw8AAABSeyJvcmlnaW4iOiJodHRwczovL2Nocm9tZS5kZXY6NDQzIiwiZmVhdHVlIjoiVHJhbnNsYXRpb25BUEkiLCJleHBpcnkiOjE3NTMxNDI0MDB9" />
+
+    <!-- FIX: Added Permissions-Policy meta tag for language-detection and translation -->
+    <meta http-equiv="Permissions-Policy" content="language-detection=(self), translation=(self)">
+
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 20px;
+        visibility: hidden; /* Hidden by default, shown by JS if APIs are supported */
+      }
+      label {
+        font-weight: bold;
+      }
+      textarea, select, output {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        width: 100%;
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        width: fit-content; /* Adjust button width */
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .hidden {
+        display: none;
+      }
+      .not-supported-message {
+        border: red solid 2px;
+        padding: 10px;
+        color: red;
+        margin-bottom: 20px;
+      }
+      footer {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 0.8em;
+        color: #666;
+      }
+      footer a {
+        color: #007bff;
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>💬 Translator and Language Detector</h1>
+
+    <div class="not-supported-message" id="browserNotSupported" style="display: none;">
+      Your browser doesn't support the Language Detector or Translator APIs (Gemini Nano).
+      Please ensure you are using a compatible browser version (e.g., Chrome 138+ with experimental features enabled, if necessary).
+    </div>
+
+    <form id="translatorForm">
+      <label for="input">Input Text:</label>
+      <textarea
+        id="input"
+        rows="6"
+        placeholder="Enter text here..."
+      >Hello, world! How are you today? This is a test sentence in English.</textarea>
+      <p>
+        Detected Language: <span id="detectedLanguage">not sure what language this is</span>.
+      </p>
+
+      <label for="translate" id="translateLabel" class="hidden">
+        Translate to:
+        <select id="translate">
+          <option value="en">English</option>
+          <option value="ja">Japanese</option>
+          <option selected value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="zh">Chinese (Simplified)</option>
+          <option value="ar">Arabic</option>
+          <option value="ru">Russian</option>
+        </select>
+      </label>
+      <button type="submit" id="translateButton" class="hidden">
+        Translate
+      </button>
+    </form>
+
+    <div id="loadingIndicator" class="hidden">
+      <p>Translating...</p>
+    </div>
+
+    <label for="output" id="outputLabel" class="hidden">Translation:</label>
+    <output id="output" class="hidden"></output>
+
+    <footer>
+      Made by <a href="https://github.com/tomayac/">@tomayac</a>. Source code on
+      <a href="https://github.com/GoogleChromeLabs/web-ai-demos">GitHub</a>.
+    </footer>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', async () => {
+        const inputTextarea = document.getElementById('input');
+        const outputDisplay = document.getElementById('output');
+        const translatorForm = document.getElementById('translatorForm');
+        const detectedLanguageSpan = document.getElementById('detectedLanguage');
+        const targetLanguageSelect = document.getElementById('translate');
+        const translateButton = document.getElementById('translateButton');
+        const loadingMessage = document.getElementById('loadingIndicator');
+        const browserNotSupportedMessage = document.getElementById('browserNotSupported');
+        const translateLabel = document.getElementById('translateLabel');
+        const outputLabel = document.getElementById('outputLabel');
+
+        let languageDetector = null;
+        let translator = null;
+
+        /**
+         * Helper function to convert a language code (like 'en') to a human-readable name (like 'English').
+         * @param {string} languageCode - The BCP 47 language tag (e.g., 'en', 'es').
+         * @param {string} displayInLanguage - The language to display the name in (e.g., 'en' for English names).
+         * @returns {string} The human-readable language name.
+         */
+        const getHumanReadableLanguage = (languageCode, displayInLanguage) => {
+          try {
+            const displayNames = new Intl.DisplayNames([displayInLanguage], {
+              type: 'language',
+            });
+            return displayNames.of(languageCode);
+          } catch (error) {
+            console.error("Error formatting language code:", error);
+            return languageCode; // Fallback to the code itself if an error occurs
+          }
+        };
+
+        // --- Initialize Language Detector and Translator APIs ---
+        if (!('LanguageDetector' in self)) {
+          browserNotSupportedMessage.style.display = 'block';
+          translatorForm.style.visibility = 'hidden'; // Keep form hidden if not supported
+          return; // Stop execution if API is not available
+        }
+
+        translatorForm.style.visibility = 'visible'; // Show form if LanguageDetector is present
+        languageDetector = await LanguageDetector.create();
+
+        if ('Translator' in self) {
+          // Show translation related elements
+          translateLabel.classList.remove('hidden');
+          translateButton.classList.remove('hidden');
+          outputLabel.classList.remove('hidden');
+          outputDisplay.classList.remove('hidden');
+        } else {
+          // If Translator API is not available, hide translation elements
+          translateLabel.classList.add('hidden');
+          translateButton.classList.add('hidden');
+          outputLabel.classList.add('hidden');
+          outputDisplay.classList.add('hidden');
+          // Update the browser not supported message to be more specific
+          browserNotSupportedMessage.textContent = "Your browser supports Language Detector but not the Translator API. Please ensure you are using a compatible browser version.";
+          browserNotSupportedMessage.style.display = 'block';
+        }
+
+
+        // --- Event Listeners ---
+
+        // Listen for changes in the input textarea to detect language in real-time
+        inputTextarea.addEventListener('input', async () => {
+          const text = inputTextarea.value.trim();
+          if (!text) {
+            detectedLanguageSpan.textContent = 'not sure what language this is';
+            return;
+          }
+
+          try {
+            const detections = await languageDetector.detect(text);
+            if (detections && detections.length > 0) {
+              const { detectedLanguage, confidence } = detections[0];
+              detectedLanguageSpan.textContent = `${(confidence * 100).toFixed(1)}% sure that this is ${getHumanReadableLanguage(detectedLanguage, 'en')}`;
+            } else {
+              detectedLanguageSpan.textContent = 'could not detect language';
+            }
+          } catch (error) {
+            console.error("Error detecting language:", error);
+            detectedLanguageSpan.textContent = 'error detecting language';
+          }
+        });
+
+        // Listen for the form submission to initiate translation
+        translatorForm.addEventListener('submit', async (event) => {
+          event.preventDefault(); // Prevent the default form submission (page reload)
+
+          // Only proceed with translation if Translator API is available
+          if (!('Translator' in self)) {
+            outputDisplay.textContent = 'Translation API not available in your browser.';
+            return;
+          }
+
+          const textToTranslate = inputTextarea.value.trim();
+          const targetLanguage = targetLanguageSelect.value;
+
+          if (!textToTranslate) {
+            outputDisplay.textContent = 'Please enter text to translate.';
+            return;
+          }
+
+          // Clear previous output and show loading indicator
+          outputDisplay.textContent = '';
+          loadingMessage.classList.remove('hidden'); // Show "Translating..." message
+          translateButton.disabled = true; // Disable button to prevent multiple clicks
+
+          try {
+            // Create a Translator instance for the detected source and target languages
+            // First, detect the source language
+            const detections = await languageDetector.detect(textToTranslate);
+            const sourceLanguage = detections && detections.length > 0 ? detections[0].detectedLanguage : 'und';
+
+            if (sourceLanguage === 'und') {
+                outputDisplay.textContent = 'Could not determine source language for translation.';
+                return;
+            }
+
+            // Check translation availability
+            const availability = await Translator.availability({ sourceLanguage, targetLanguage });
+            if (availability === 'unavailable') {
+                outputDisplay.textContent = `${getHumanReadableLanguage(sourceLanguage, 'en')} to ${getHumanReadableLanguage(targetLanguage, 'en')} translation is not supported by the browser.`;
+                return;
+            }
+
+            translator = await Translator.create({ sourceLanguage, targetLanguage });
+            const translatedText = await translator.translate(textToTranslate);
+            outputDisplay.textContent = translatedText; // Display the translated text
+          } catch (error) {
+            outputDisplay.textContent = 'An error occurred during translation. Please try again.';
+            console.error("Translation process error:", error);
+          } finally {
+            // Hide loading indicator and re-enable button
+            loadingMessage.classList.add('hidden');
+            translateButton.disabled = false;
+          }
+        });
+
+        // Trigger initial language detection when the page loads with default text
+        inputTextarea.dispatchEvent(new Event('input'));
+      });
+    </script>
+  </body>
+</html>
