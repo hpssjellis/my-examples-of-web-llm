@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Nano Prompt & Translation/Detection API Demo</title>
+    <!-- Permissions-Policy meta tag for Web AI APIs. Using '*' for broader compatibility. -->
+    <meta http-equiv="Permissions-Policy" content="ch-ua-full-version-list=*; language-detection=*; translate=*; interest-cohort=()">
+    <style>
+        /* Absolutely necessary CSS for basic readability and functionality */
+        .loading {
+            color: blue; /* Simple blue for loading */
+            font-style: italic;
+        }
+        .error {
+            color: red; /* Simple red for errors */
+            font-weight: bold;
+        }
+        #output {
+            margin-top: 1em; /* Basic spacing */
+            border: 1px solid black; /* Simple border for clarity */
+            padding: 0.5em; /* Basic padding */
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            word-wrap: break-word; /* Break long words */
+            height: 200px; /* Give it a fixed height */
+            overflow-y: auto; /* Allow scrolling if content overflows */
+        }
+        button:disabled {
+            background-color: #cccccc; /* Keep disabled state clear */
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 98%; /* Make textarea responsive */
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .metrics {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 0.5em;
+            border-top: 1px dashed #ccc;
+            padding-top: 0.5em;
+        }
+        #timerDisplay {
+            margin-top: 1em;
+            font-weight: bold;
+            color: #007bff; /* A distinct color for the timer */
+            min-height: 1.5em; /* Reserve space to prevent layout shift */
+        }
+        .copy-container {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            max-width: 350px; /* Make the container more compact */
+            margin-left: auto; /* Center the container if parent is wider */
+            margin-right: auto; /* Center the container if parent is wider */
+        }
+        .copy-input {
+            flex-grow: 1;
+            padding: 8px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .copy-button {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+        /* New styles for the dynamically shown/hidden language UI */
+        #languageUiContainer {
+            margin-top: 1em;
+            padding-top: 1em;
+            border-top: 1px solid #eee;
+            /* Initially hidden, will be shown by JS */
+            display: none;
+        }
+        .language-select-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .language-select-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .language-select-group select:last-child {
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gemini Nano Prompt & Translation/Detection API Demo</h1>
+        <p>
+            A starting point for a client-side, LLM in the browser, for online and offline Javascript use.<br>
+            <h3> NOT YET FOR MOBILE, DO NOT TRY YET ON MOBILE!</h3>
+            By <a href="https://github.com/hpssjellis">Jeremy Ellis</a> uses at your own risk<br>
+            Github for these gitpages at <a href="https://github.com/hpssjellis/my-examples-of-web-llm">https://github.com/hpssjellis/my-examples-of-web-llm</a><br>
+            Main Demo index at <a href="https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html">https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html</a>
+        </p>
+        <p>
+            This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
+            Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome address bar:
+            <input type="text" id="flagsLink" class="copy-input" value="chrome://flags" readonly>
+            <button class="copy-button" onclick="copyFlagsLink()">Copy - tab</button><br>
+            Then search for "optimization-guide-on-device-model" and then search for "gemini-nano"
+        </p>
+        <p>
+            <ul>
+                <li><code>#optimization-guide-on-device-model</code> (set to Enabled BypassPrefRequirement)</li>
+                <li><code>#prompt-api-for-gemini-nano</code> (set to Enabled) This might be the only flag you might have to set</li>
+                <li><code>#language-detector-api-for-gemini-nano</code> (set to Enabled)</li>
+                <li><code>#language-translator-api-for-gemini-nano</code> (set to Enabled)</li>
+                <li><code>#prompt-api-for-gemini-nano-multimodal-input</code>(set to Enabled) </li>
+                <li><code>#summarization-api-for-gemini-nano</code>(set to Enabled) </li>
+                <li><code>#writer-api-for-gemini-nano</code> (set to Enabled) </li>
+                <li><code>#rewriter-api-for-gemini-nano</code> (set to Enabled) </li>
+            </ul>
+            The Gemini Nano model will download the first time you use it. That will be about 4.0 GB of download and will need
+            about 20 GB saving space for the final folders.
+        </p>
+
+        <!-- Main Prompt API Controls -->
+        <div id="promptApiControls">
+            <button onclick="checkAvailability()">Check API Availability</button>
+            <button onclick="getParams()">Get Model Parameters</button>
+            <button id="createSessionBtn" onclick="createSession()">Create Language Model Session</button>
+            <hr> <!-- Separator for prompt selection buttons -->
+            <button id="prepSimplePromptBtn" onclick="preparePrompt('simple')">Prepare Simple Prompt</button>
+            <button id="prepStreamPromptBtn" onclick="preparePrompt('streaming')">Prepare Streaming Prompt</button>
+            <button id="prepMultimodalPromptBtn" onclick="preparePrompt('multimodal')">Prepare Multimodal Prompt (Text Only)</button>
+            <button id="prepSummarizeBtn" onclick="preparePrompt('summarize')">Prepare Summarize Text</button>
+            <button id="prepWriteBtn" onclick="preparePrompt('write')">Prepare Write Content</button>
+            <button id="prepRewriteBtn" onclick="preparePrompt('rewrite')">Prepare Rewrite Text</button>
+            <hr> <!-- Separator for new Translation/Detection buttons -->
+            <button id="prepDetectLanguageBtn" onclick="prepareLanguageApi('detect')">Detect Language</button>
+            <button id="prepTranslateTextBtn" onclick="prepareLanguageApi('translate')">Translate Text</button>
+            <hr> <!-- Separator for textarea and execute button -->
+            <h3>Edit Prompt:</h3>
+            <textarea id="promptInput" rows="5" cols="80" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
+
+            <button id="executePromptBtn" onclick="executePrompt()" disabled>Execute Prompt</button>
+        </div>
+
+        <h2>Output:</h2>
+        <div id="timerDisplay"></div> <!-- New div for the timer -->
+        <pre id="output">No output yet. Click a button to begin.</pre>
+
+        <!-- New Section for Translation and Language Detection - Initially Hidden -->
+        <div id="languageUiContainer" style="display: none;">
+            <h2>Translation & Language Detection API</h2>
+            <p>
+                Use the Language Detector and Language Translator APIs to detect the language of text or translate it.
+                Requires additional flags: <code>#language-detector-api-for-gemini-nano</code> and <code>#language-translator-api-for-gemini-nano</code>.
+            </p>
+
+            <h3>Text for Translation/Detection:</h3>
+            <textarea id="translationInput" rows="5" cols="80" placeholder="Enter text to detect language or translate..."></textarea>
+
+            <div class="language-select-group">
+                <select id="sourceLanguageSelect" disabled>
+                    <option value="">Detect Source Language</option>
+                </select>
+                <select id="targetLanguageSelect" disabled>
+                    <option value="">Select Target Language</option>
+                </select>
+            </div>
+            <!-- The execute button will be used for these as well, but its text will change -->
+            <button id="executeLanguageApiBtn" onclick="executeLanguageApi()" disabled>Execute Language API</button>
+
+            <h3>Translation/Detection Output:</h3>
+            <pre id="translationOutput">No translation or detection output yet.</pre>
+        </div>
+
+    </div>
+
+    <script>
+        // Global variable to hold the LanguageModel session
+        let languageModelSession = null;
+        // Global variable to track the current prompt mode (simple, streaming, etc.)
+        let currentPromptMode = { type: null, isStreaming: false };
+
+        // New global variables for Language Detector and Translator sessions
+        let languageDetectorSession = null;
+        let languageTranslatorSession = null;
+
+        // Timer variables
+        let startTime = 0;
+        let timerInterval = null;
+        let lastGeneratedText = ''; // To store the full generated text for metrics
+
+        // Get references to output and buttons
+        const outputDiv = document.getElementById('output');
+        const timerDisplay = document.getElementById('timerDisplay'); // Reference to new timer div
+        const createSessionBtn = document.getElementById('createSessionBtn');
+        const promptInput = document.getElementById('promptInput');
+        const executePromptBtn = document.getElementById('executePromptBtn');
+
+        // References to the "prepare" buttons (Prompt API)
+        const prepSimplePromptBtn = document.getElementById('prepSimplePromptBtn');
+        const prepStreamPromptBtn = document.getElementById('prepStreamPromptBtn');
+        const prepMultimodalPromptBtn = document.getElementById('prepMultimodalPromptBtn');
+        const prepSummarizeBtn = document.getElementById('prepSummarizeBtn');
+        const prepWriteBtn = document.getElementById('prepWriteBtn');
+        const prepRewriteBtn = document.getElementById('prepRewriteBtn');
+
+        // New references for Translation/Detection API elements
+        const translationInput = document.getElementById('translationInput');
+        const sourceLanguageSelect = document.getElementById('sourceLanguageSelect');
+        const targetLanguageSelect = document.getElementById('targetLanguageSelect');
+        const prepDetectLanguageBtn = document.getElementById('prepDetectLanguageBtn'); // Renamed for consistency
+        const prepTranslateTextBtn = document.getElementById('prepTranslateTextBtn'); // Renamed for consistency
+        const translationOutput = document.getElementById('translationOutput');
+        const executeLanguageApiBtn = document.getElementById('executeLanguageApiBtn'); // New button for language API execution
+
+        // Container divs for showing/hiding sections
+        const promptApiControls = document.getElementById('promptApiControls');
+        const languageUiContainer = document.getElementById('languageUiContainer');
+
+
+        /**
+         * Displays a message in the output area.
+         * @param {string} message The message to display.
+         * @param {string} type The type of message (e.g., 'info', 'error', 'loading').
+         * @param {boolean} append Whether to append the message or replace current content.
+         * @param {HTMLElement} targetOutputDiv The specific output div to write to (e.g., outputDiv or translationOutput).
+         */
+        function displayOutput(message, type = 'info', append = true, targetOutputDiv = outputDiv) {
+            const now = new Date().toLocaleTimeString();
+            let formattedMessage = `[${now}] ${message}`;
+            let content = '';
+
+            if (type === 'loading') {
+                content = `<span class="loading">${formattedMessage}</span>`;
+            } else if (type === 'error') {
+                content = `<span class="error">${formattedMessage}</span>`;
+            } else {
+                content = formattedMessage;
+            }
+
+            if (append) {
+                targetOutputDiv.innerHTML += `\n${content}`;
+            } else {
+                targetOutputDiv.innerHTML = content;
+            }
+            targetOutputDiv.scrollTop = targetOutputDiv.scrollHeight; // Scroll to bottom
+            console.log(formattedMessage); // Also log to console for debugging
+        }
+
+        /**
+         * Clears the main output div.
+         */
+        function clearOutput(targetOutputDiv = outputDiv) {
+            targetOutputDiv.innerHTML = '';
+        }
+
+        /**
+         * Updates the timer display in the output area.
+         */
+        function updateTimerDisplay() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            timerDisplay.textContent = `Thinking... ${elapsed.toFixed(2)}s`;
+        }
+
+        /**
+         * Checks the availability of the LanguageModel API.
+         */
+        async function checkAvailability() {
+            clearOutput(outputDiv); // Clear previous output before new check
+            displayOutput('Checking LanguageModel API availability...', 'info', false, outputDiv); // Replace for initial check
+            try {
+                // LanguageModel is a global object provided by Chrome when flags are enabled.
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available (likely flags not enabled or Chrome version too old).', 'error', true, outputDiv); // Append error
+                    return;
+                }
+                const availability = await LanguageModel.availability();
+                displayOutput(`API Availability: ${availability}`, 'info', true, outputDiv); // Append info
+                // If downloadable, prompt to create session to trigger download.
+                if (availability === 'downloadable') {
+                    displayOutput('Model is downloadable. Click "Create Language Model Session" to initiate download.', 'info', true, outputDiv); // Append info
+                } else if (availability === 'available') {
+                    displayOutput('Model is available and ready for use.', 'info', true, outputDiv); // Append info
+                    createSessionBtn.disabled = false; // Enable session creation if model is available
+                }
+            } catch (error) {
+                displayOutput(`Error checking availability: ${error.message}`, 'error', true, outputDiv); // Append error
+                console.error('Error checking availability:', error);
+            }
+        }
+
+        /**
+         * Retrieves the default and maximum parameters for the LanguageModel.
+         */
+        async function getParams() {
+            clearOutput(outputDiv); // Clear previous output
+            displayOutput('Fetching LanguageModel parameters...', 'info', false, outputDiv); // Replace for initial check
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available.', 'error', true, outputDiv); // Append error
+                    return;
+                }
+                const params = await LanguageModel.params();
+                displayOutput('LanguageModel Parameters:\n' + JSON.stringify(params, null, 2), 'info', true, outputDiv); // Append info
+            } catch (error) {
+                displayOutput(`Error fetching parameters: ${error.message}`, 'error', true, outputDiv); // Append error
+                console.error('Error fetching parameters:', error);
+            }
+        }
+
+        /**
+         * Creates a new LanguageModel session.
+         * This might trigger a model download if it's not already available.
+         */
+        async function createSession() {
+            clearOutput(outputDiv); // Clear previous output
+            displayOutput('Creating LanguageModel session (this may take a while if model needs to download)...', 'loading', false, outputDiv); // Replace for initial check
+            createSessionBtn.disabled = true; // Disable button during session creation
+
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    displayOutput('LanguageModel API is not available.', 'error', true, outputDiv); // Append error
+                    createSessionBtn.disabled = false;
+                    return;
+                }
+
+                // Create a session with a monitor to track download progress
+                languageModelSession = await LanguageModel.create({
+                    monitor(m) {
+                        m.addEventListener("downloadprogress", (e) => {
+                            // Update loading message with download progress, replacing the previous progress
+                            displayOutput(`Downloading model: ${((e.loaded / e.total) * 100).toFixed(2)}%`, 'loading', false, outputDiv);
+                        });
+                    }
+                });
+                displayOutput('LanguageModel session created successfully! You can now prepare and execute prompts.', 'info', true, outputDiv); // Append final success message
+                // Enable all prompt preparation buttons and the execute button
+                enableAllPreparationButtons();
+                executePromptBtn.disabled = false; // Enable execute button after session is ready
+            } catch (error) {
+                displayOutput(`Error creating session: ${error.message}`, 'error', true, outputDiv); // Append error
+                console.error('Error creating session:', error);
+                createSessionBtn.disabled = false; // Re-enable button on error
+            }
+        }
+
+        /**
+         * Initializes Language Detector and Translator APIs and populates language dropdowns.
+         */
+        async function initLanguageAPIs() {
+            clearOutput(translationOutput); // Clear previous output for translation section
+            displayOutput('Initializing Language Detection and Translation APIs...', 'info', true, translationOutput);
+
+            try {
+                // Initialize Language Detector
+                if (typeof LanguageDetector === 'undefined') {
+                    displayOutput('LanguageDetector API is not available. Ensure #language-detector-api-for-gemini-nano flag is enabled.', 'error', true, translationOutput);
+                } else {
+                    const detectorAvailability = await LanguageDetector.availability();
+                    if (detectorAvailability === 'available') {
+                        languageDetectorSession = await LanguageDetector.create();
+                        displayOutput('LanguageDetector session created.', 'info', true, translationOutput);
+                    } else {
+                        displayOutput(`LanguageDetector model not ready: ${detectorAvailability}. Ensure flags are enabled and model downloaded.`, 'error', true, translationOutput);
+                    }
+                }
+
+                // Initialize Language Translator
+                if (typeof LanguageTranslator === 'undefined') {
+                    displayOutput('LanguageTranslator API is not available. Ensure #language-translator-api-for-gemini-nano flag is enabled.', 'error', true, translationOutput);
+                } else {
+                    const translatorAvailability = await LanguageTranslator.availability();
+                    if (translatorAvailability === 'available') {
+                        languageTranslatorSession = await LanguageTranslator.create();
+                        displayOutput('LanguageTranslator session created.', 'info', true, translationOutput);
+
+                        // Populate language dropdowns
+                        const languages = await languageTranslatorSession.getSupportedLanguages();
+                        sourceLanguageSelect.innerHTML = '<option value="">Detect Source Language</option>'; // Default option
+                        targetLanguageSelect.innerHTML = '<option value="">Select Target Language</option>'; // Default option
+
+                        languages.forEach(lang => {
+                            const option = document.createElement('option');
+                            option.value = lang.language;
+                            option.textContent = lang.language; // Display language code for simplicity
+                            sourceLanguageSelect.appendChild(option.cloneNode(true));
+                            targetLanguageSelect.appendChild(option);
+                        });
+                        sourceLanguageSelect.disabled = false;
+                        targetLanguageSelect.disabled = false;
+                        displayOutput(`Supported languages loaded: ${languages.length} available.`, 'info', true, translationOutput);
+                    } else {
+                        displayOutput(`LanguageTranslator model not ready: ${translatorAvailability}. Ensure flags are enabled and model downloaded.`, 'error', true, translationOutput);
+                    }
+                }
+            } catch (error) {
+                displayOutput(`Error initializing Language APIs: ${error.message}`, 'error', true, translationOutput);
+                console.error('Error initializing Language APIs:', error);
+            }
+        }
+
+
+        /**
+         * Prepares the textarea with a default prompt based on the type.
+         * @param {string} type The type of prompt to prepare ('simple', 'streaming', 'multimodal', 'summarize', 'write', 'rewrite').
+         */
+        function preparePrompt(type) {
+            // Show Prompt API UI, hide Language UI
+            promptApiControls.style.display = 'block';
+            outputDiv.style.display = 'block';
+            timerDisplay.style.display = 'block';
+            languageUiContainer.style.display = 'none';
+
+            let defaultText = '';
+            let isStreaming = false;
+
+            switch (type) {
+                case 'simple':
+                    defaultText = "Write a short, positive affirmation for the day.";
+                    break;
+                case 'streaming':
+                    defaultText = "Tell me a short story about a friendly robot exploring an ancient library. Make it at least 50 words.";
+                    isStreaming = true;
+                    break;
+                case 'multimodal':
+                    // Multimodal is now text-only as image upload is removed
+                    defaultText = "Describe a sunny day at the beach, including the sounds and smells.";
+                    break;
+                case 'summarize':
+                    defaultText = "Summarize the following text: The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
+                    break;
+                case 'write':
+                    defaultText = "Write a short paragraph about the benefits of reading books.";
+                    break;
+                case 'rewrite':
+                    defaultText = "Rewrite the following sentence to sound more exciting: I went to the store and bought some apples.";
+                    break;
+                default:
+                    defaultText = "";
+                    break;
+            }
+            promptInput.value = defaultText;
+            currentPromptMode = { type: type, isStreaming: isStreaming };
+            displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true, outputDiv); // Append new message
+            executePromptBtn.disabled = false; // Ensure execute button is enabled after preparing
+        }
+
+        /**
+         * Prepares the UI for Language API usage.
+         * @param {string} type The type of language API to prepare ('detect', 'translate').
+         */
+        function prepareLanguageApi(type) {
+            // Show Language UI, hide Prompt API UI
+            promptApiControls.style.display = 'none';
+            outputDiv.style.display = 'none';
+            timerDisplay.style.display = 'none';
+            languageUiContainer.style.display = 'block';
+
+            currentPromptMode = { type: type, isStreaming: false }; // Language APIs are not streaming in this context
+
+            // Set default text for translation input
+            if (type === 'detect') {
+                translationInput.value = "Hello, how are you?";
+                executeLanguageApiBtn.textContent = "Detect Language";
+                executeLanguageApiBtn.disabled = !languageDetectorSession; // Enable if detector session exists
+                sourceLanguageSelect.style.display = 'none'; // Hide source language for detection
+                targetLanguageSelect.style.display = 'none'; // Hide target language for detection
+                displayOutput('Ready to detect language. Enter text and click "Detect Language".', 'info', true, translationOutput);
+            } else if (type === 'translate') {
+                translationInput.value = "The quick brown fox jumps over the lazy dog.";
+                executeLanguageApiBtn.textContent = "Translate Text";
+                executeLanguageApiBtn.disabled = !languageTranslatorSession; // Enable if translator session exists
+                sourceLanguageSelect.style.display = 'block'; // Show source language for translation
+                targetLanguageSelect.style.display = 'block'; // Show target language for translation
+                displayOutput('Ready to translate. Select languages, enter text, and click "Translate Text".', 'info', true, translationOutput);
+            }
+            clearOutput(translationOutput); // Clear previous output in translation area
+        }
+
+
+        /**
+         * Executes the prompt based on the current text in the textarea and the selected mode.
+         */
+        async function executePrompt() {
+            if (!languageModelSession) {
+                displayOutput('Please create a session first!', 'error', true, outputDiv); // Append error
+                return;
+            }
+            if (!currentPromptMode.type) {
+                displayOutput('Please prepare a prompt first by clicking one of the "Prepare" buttons.', 'error', true, outputDiv); // Append error
+                return;
+            }
+
+            const promptText = promptInput.value;
+            if (!promptText.trim()) {
+                displayOutput('Prompt text cannot be empty!', 'error', true, outputDiv); // Append error
+                return;
+            }
+
+            // Start the timer
+            startTime = Date.now();
+            lastGeneratedText = ''; // Reset for new generation
+            timerDisplay.textContent = `Thinking... 0.00s`; // Initial display in the new timer div
+            timerInterval = setInterval(updateTimerDisplay, 100); // Update every 100ms
+            outputDiv.innerHTML = ''; // Clear main output box
+
+            disableAllButtons(); // Disable all buttons during execution
+
+            try {
+                let promptContent = promptText; // All prompts are text-only now
+
+                if (currentPromptMode.isStreaming) {
+                    const stream = await languageModelSession.promptStreaming(promptContent);
+
+                    for await (const chunk of stream) {
+                        lastGeneratedText += chunk;
+                        outputDiv.innerHTML = lastGeneratedText; // Update only the generated text in outputDiv
+                        outputDiv.scrollTop = outputDiv.scrollHeight; // Scroll to bottom
+                    }
+
+                    displayOutput(`Streaming Prompt Complete (${currentPromptMode.type}):\n${lastGeneratedText}`, 'info', true, outputDiv); // Append final text
+
+                } else {
+                    // Non-streaming prompts
+                    let result;
+                    result = await languageModelSession.prompt(promptContent);
+
+                    displayOutput(`Prompt Result (${currentPromptMode.type}):\n${result}`, 'info', true, outputDiv); // Append final text
+                    lastGeneratedText = result; // Store raw text for metrics
+                }
+            } catch (error) {
+                displayOutput(`Error executing prompt: ${error.message}`, 'error', true, outputDiv); // Append error
+                console.error('Error executing prompt:', error);
+                lastGeneratedText = ''; // Clear generated text on error
+            } finally {
+                // Stop the timer on completion or error
+                clearInterval(timerInterval);
+                // Calculate and display performance metrics in the timerDisplay area
+                const endTime = Date.now(); // Recalculate endTime in case of error path
+                const durationSeconds = (endTime - startTime) / 1000;
+                const charCount = lastGeneratedText.length;
+                // Simple word count: split by whitespace and filter out empty strings
+                const wordCount = lastGeneratedText.split(/\s+/).filter(word => word.length > 0).length;
+                const charsPerSecond = durationSeconds > 0 ? (charCount / durationSeconds).toFixed(2) : '0.00';
+                const wordsPerSecond = durationSeconds > 0 ? (wordCount / durationSeconds).toFixed(2) : '0.00';
+
+                timerDisplay.innerHTML =
+                    `Completed in ${durationSeconds.toFixed(2)}s<br>` +
+                    `Chars: ${charCount} (${charsPerSecond}/s)<br>` +
+                    `Words: ${wordCount} (${wordsPerSecond}/s)`;
+
+                enableAllButtons(); // Re-enable buttons after execution
+            }
+        }
+
+        /**
+         * Executes the Language API based on the current mode.
+         */
+        async function executeLanguageApi() {
+            clearOutput(translationOutput);
+            const text = translationInput.value.trim();
+            if (!text) {
+                displayOutput('Please enter text for the Language API operation.', 'error', true, translationOutput);
+                return;
+            }
+
+            disableAllButtons(); // Disable all buttons during execution
+            executeLanguageApiBtn.disabled = true; // Disable self during execution
+
+            try {
+                if (currentPromptMode.type === 'detect') {
+                    if (!languageDetectorSession) {
+                        displayOutput('Language Detector session not initialized. Ensure flags are enabled and page reloaded.', 'error', true, translationOutput);
+                        return;
+                    }
+                    displayOutput('Detecting language...', 'loading', false, translationOutput);
+                    const detectedLanguage = await languageDetectorSession.detect(text);
+                    displayOutput(`Detected Language: ${detectedLanguage.language} (Confidence: ${detectedLanguage.confidence.toFixed(2)})`, 'info', false, translationOutput);
+                } else if (currentPromptMode.type === 'translate') {
+                    if (!languageTranslatorSession) {
+                        displayOutput('Language Translator session not initialized. Ensure flags are enabled and page reloaded.', 'error', true, translationOutput);
+                        return;
+                    }
+                    const sourceLang = sourceLanguageSelect.value;
+                    const targetLang = targetLanguageSelect.value;
+
+                    if (!sourceLang && sourceLanguageSelect.options.length > 1) {
+                        displayOutput('Please select a source language or leave "Detect Source Language" if auto-detection is desired.', 'error', true, translationOutput);
+                        return;
+                    }
+                    if (!targetLang) {
+                        displayOutput('Please select a target language.', 'error', true, translationOutput);
+                        return;
+                    }
+
+                    displayOutput(`Translating from ${sourceLang || 'auto-detect'} to ${targetLang}...`, 'loading', false, translationOutput);
+                    const translatedText = await languageTranslatorSession.translate(text, sourceLang, targetLang);
+                    displayOutput(`Translated Text:\n${translatedText}`, 'info', false, translationOutput);
+                }
+            } catch (error) {
+                displayOutput(`Error executing Language API: ${error.message}`, 'error', false, translationOutput);
+                console.error('Error executing Language API:', error);
+            } finally {
+                enableAllButtons(); // Re-enable all buttons
+                executeLanguageApiBtn.disabled = false; // Ensure this button is re-enabled
+            }
+        }
+
+
+        /**
+         * Function to copy the chrome://flags link to the clipboard and open a new tab.
+         */
+        function copyFlagsLink() {
+            const flagsInput = document.getElementById('flagsLink');
+            flagsInput.select(); // Select the text in the input field
+            flagsInput.setSelectionRange(0, 99999); // For mobile devices
+
+            // Copy the text to the clipboard
+            document.execCommand('copy');
+
+            // Open a new blank tab
+            window.open('about:blank', '_blank');
+
+            // Provide user feedback (optional, but good for UX)
+            displayOutput('Copied "chrome://flags" to clipboard and opened a new tab!', 'info', true, outputDiv); // Append info to main output
+        }
+
+
+        /**
+         * Helper function to disable all relevant buttons during API calls.
+         */
+        function disableAllButtons() {
+            createSessionBtn.disabled = true;
+            executePromptBtn.disabled = true;
+            prepDetectLanguageBtn.disabled = true;
+            prepTranslateTextBtn.disabled = true;
+            executeLanguageApiBtn.disabled = true; // Disable the language API execute button
+            disableAllPreparationButtons();
+            sourceLanguageSelect.disabled = true;
+            targetLanguageSelect.disabled = true;
+        }
+
+        /**
+         * Helper function to enable all relevant buttons after API calls.
+         */
+        function enableAllButtons() {
+            // Only re-enable createSessionBtn if languageModelSession is not yet created
+            if (!languageModelSession) {
+                createSessionBtn.disabled = false;
+            } else {
+                // If languageModelSession exists, enable execute button and preparation buttons for Prompt API
+                executePromptBtn.disabled = false;
+                enableAllPreparationButtons();
+            }
+
+            // Always enable the prepare language API buttons if their sessions are initialized
+            if (languageDetectorSession) {
+                prepDetectLanguageBtn.disabled = false;
+            }
+            if (languageTranslatorSession) {
+                prepTranslateTextBtn.disabled = false;
+            }
+
+            // Enable the specific execute button for the currently active mode
+            if (currentPromptMode.type === 'detect' && languageDetectorSession) {
+                executeLanguageApiBtn.disabled = false;
+            } else if (currentPromptMode.type === 'translate' && languageTranslatorSession) {
+                executeLanguageApiBtn.disabled = false;
+                sourceLanguageSelect.disabled = false;
+                targetLanguageSelect.disabled = false;
+            } else if (currentPromptMode.type && currentPromptMode.type !== 'detect' && currentPromptMode.type !== 'translate' && languageModelSession) {
+                executePromptBtn.disabled = false;
+            }
+        }
+
+        /**
+         * Helper function to disable all prompt preparation buttons.
+         */
+        function disableAllPreparationButtons() {
+            prepSimplePromptBtn.disabled = true;
+            prepStreamPromptBtn.disabled = true;
+            prepMultimodalPromptBtn.disabled = true;
+            prepSummarizeBtn.disabled = true;
+            prepWriteBtn.disabled = true;
+            prepRewriteBtn.disabled = true;
+        }
+
+        /**
+         * Helper function to enable all prompt preparation buttons.
+         */
+        function enableAllPreparationButtons() {
+            prepSimplePromptBtn.disabled = false;
+            prepStreamPromptBtn.disabled = false;
+            prepMultimodalPromptBtn.disabled = false;
+            prepSummarizeBtn.disabled = false;
+            prepWriteBtn.disabled = false;
+            prepRewriteBtn.disabled = false;
+        }
+
+        // Initial checks and API initialization on page load
+        window.onload = () => {
+            checkAvailability(); // Check Prompt API availability
+            initLanguageAPIs(); // Initialize Language Detector and Translator APIs
+            disableAllPreparationButtons(); // Disable prompt preparation buttons until LanguageModel session is created
+            executePromptBtn.disabled = true; // Disable execute button initially
+            prepDetectLanguageBtn.disabled = true; // Disable until detector is ready
+            prepTranslateTextBtn.disabled = true; // Disable until translator is ready
+            executeLanguageApiBtn.disabled = true; // Disable the language API execute button
+            sourceLanguageSelect.disabled = true; // Disable until languages are loaded
+            targetLanguageSelect.disabled = true; // Disable until languages are loaded
+
+            // Initially show Prompt API controls and hide Language UI
+            promptApiControls.style.display = 'block';
+            languageUiContainer.style.display = 'none';
+        };
+    </script>
+</body>
+</html>
