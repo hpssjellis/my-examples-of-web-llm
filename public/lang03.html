@@ -9,7 +9,7 @@
     <h1>💬 Translator and Language Detector</h1>
 
     <form id="translatorForm">
-      <label for="input">Input Text:</label>
+      <label for="input">Input Text:</label><br>
       <textarea
         id="input"
         rows="6"
@@ -37,8 +37,9 @@
       </button>
     </form>
 
-    <div id="loadingIndicator" class="hidden">
-      <p>Translating...</p>
+    <!-- Re-added loading indicator div -->
+    <div id="loadingIndicator" >
+      <p>...</p>
     </div>
 
     <label for="output">Translation:</label>
@@ -46,156 +47,198 @@
 
 
     <script>
+      // Wait for the entire HTML document to be loaded before running the script
       document.addEventListener('DOMContentLoaded', () => {
-        const input = document.getElementById('input');
-        const output = document.getElementById('output');
-        const form = document.getElementById('translatorForm');
-        const detectedSpan = document.getElementById('detectedLanguage');
-        const languageSelect = document.getElementById('translate');
+        // Get references to HTML elements
+        const inputTextarea = document.getElementById('input');
+        const outputDisplay = document.getElementById('output');
+        const translatorForm = document.getElementById('translatorForm');
+        const detectedLanguageSpan = document.getElementById('detectedLanguage');
+        const targetLanguageSelect = document.getElementById('translate');
         const translateButton = document.getElementById('translateButton');
-        const loadingIndicator = document.getElementById('loadingIndicator');
+        const loadingMessage = document.getElementById('loadingIndicator');
 
         /**
-         * Converts a language tag (e.g., 'en', 'es') to a human-readable name.
-         * @param {string} languageTag - The BCP 47 language tag.
-         * @param {string} targetLanguage - The language to display the name in (e.g., 'en' for English names).
+         * Helper function to convert a language code (like 'en') to a human-readable name (like 'English').
+         * @param {string} languageCode - The ISO 639-1 language code (e.g., 'en', 'es').
+         * @param {string} displayInLanguage - The language to display the name in (e.g., 'en' for English names).
          * @returns {string} The human-readable language name.
          */
-        const languageTagToHumanReadable = (languageTag, targetLanguage) => {
+        const getHumanReadableLanguage = (languageCode, displayInLanguage) => {
           try {
-            const displayNames = new Intl.DisplayNames([targetLanguage], {
+            // Use Intl.DisplayNames for proper language name formatting
+            const displayNames = new Intl.DisplayNames([displayInLanguage], {
               type: 'language',
             });
-            return displayNames.of(languageTag);
-          } catch (e) {
-            console.error("Error formatting language tag:", e);
-            return languageTag; // Fallback to the tag itself
+            return displayNames.of(languageCode);
+          } catch (error) {
+            console.error("Error formatting language code:", error);
+            return languageCode; // Fallback to the code itself if an error occurs
           }
         };
 
         /**
-         * Calls the Gemini API to detect the language of the given text.
-         * @param {string} text - The text to detect the language for.
-         * @returns {Promise<{detectedLanguage: string, confidence: number}>} - The detected language and confidence.
+         * Function to detect the language of the given text using the Gemini API.
+         * It sends the text to the API and expects a language code back.
+         * @param {string} textToDetect - The text whose language needs to be detected.
+         * @returns {Promise<{detectedLanguage: string, confidence: number}>} - An object with the detected language code and a confidence score.
          */
-        const detectLanguage = async (text) => {
-          if (!text.trim()) {
-            return { detectedLanguage: 'und', confidence: 0 }; // 'und' for undetermined
+        const detectLanguage = async (textToDetect) => {
+          // If the text is empty, return 'undetermined'
+          if (!textToDetect.trim()) {
+            return { detectedLanguage: 'und', confidence: 0 };
           }
 
-          let chatHistory = [];
-          chatHistory.push({ role: "user", parts: [{ text: `Detect the language of the following text and respond with only the ISO 639-1 language code (e.g., "en" for English, "es" for Spanish). If you are unsure, respond with "und".\n\nText: "${text}"` }] });
+          // Prepare the request payload for the Gemini API
+          const chatHistory = [{
+            role: "user",
+            parts: [{ text: `Detect the language of the following text and respond with only the ISO 639-1 language code (e.g., "en" for English, "es" for Spanish). If you are unsure, respond with "und".\n\nText: "${textToDetect}"` }]
+          }];
 
           const payload = { contents: chatHistory };
-          const apiKey = ""; // Canvas will provide this at runtime
+          const apiKey = ""; // API key will be provided by the Canvas environment at runtime
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
           try {
+            // Send the request to the Gemini API
             const response = await fetch(apiUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
+
+            // Check if the response was successful (status code 2xx)
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+            }
+
             const result = await response.json();
 
+            // Process the API response
             if (result.candidates && result.candidates.length > 0 &&
                 result.candidates[0].content && result.candidates[0].content.parts &&
                 result.candidates[0].content.parts.length > 0) {
               const detectedCode = result.candidates[0].content.parts[0].text.trim().toLowerCase();
-              // Simple heuristic for confidence, as Gemini doesn't return it directly for this prompt
+              // Assign a confidence score; Gemini doesn't directly provide it for this prompt
               const confidence = detectedCode === 'und' ? 0.1 : 0.95;
               return { detectedLanguage: detectedCode, confidence: confidence };
             } else {
-              console.error("Unexpected API response structure for language detection:", result);
+              console.error("API response for language detection was unexpected:", result);
               return { detectedLanguage: 'und', confidence: 0 };
             }
           } catch (error) {
-            console.error("Error detecting language:", error);
+            console.error("Error during language detection API call:", error);
+            // Provide a more user-friendly message
             return { detectedLanguage: 'und', confidence: 0 };
           }
         };
 
         /**
-         * Calls the Gemini API to translate the given text.
-         * @param {string} text - The text to translate.
-         * @param {string} targetLanguage - The target language code (e.g., 'es').
+         * Function to translate the given text into a target language using the Gemini API.
+         * @param {string} textToTranslate - The text to be translated.
+         * @param {string} targetLanguageCode - The ISO 639-1 code of the target language.
          * @returns {Promise<string>} - The translated text.
          */
-        const translateText = async (text, targetLanguage) => {
-          if (!text.trim()) {
+        const translateText = async (textToTranslate, targetLanguageCode) => {
+          // If the text is empty, return an empty string
+          if (!textToTranslate.trim()) {
             return '';
           }
 
-          let chatHistory = [];
-          chatHistory.push({ role: "user", parts: [{ text: `Translate the following text into ${languageTagToHumanReadable(targetLanguage, 'en')}. Only provide the translated text.\n\nText: "${text}"` }] });
+          // Prepare the request payload for the Gemini API
+          const chatHistory = [{
+            role: "user",
+            parts: [{ text: `Translate the following text into ${getHumanReadableLanguage(targetLanguageCode, 'en')}. Only provide the translated text.\n\nText: "${textToTranslate}"` }]
+          }];
 
           const payload = { contents: chatHistory };
-          const apiKey = ""; // Canvas will provide this at runtime
+          const apiKey = ""; // API key will be provided by the Canvas environment at runtime
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
           try {
+            // Send the request to the Gemini API
             const response = await fetch(apiUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
+
+            // Check if the response was successful (status code 2xx)
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+            }
+
             const result = await response.json();
 
+            // Process the API response
             if (result.candidates && result.candidates.length > 0 &&
                 result.candidates[0].content && result.candidates[0].content.parts &&
                 result.candidates[0].content.parts.length > 0) {
               return result.candidates[0].content.parts[0].text.trim();
             } else {
-              console.error("Unexpected API response structure for translation:", result);
+              console.error("API response for translation was unexpected:", result);
               return 'Translation failed: Unexpected API response.';
             }
           } catch (error) {
-            console.error("Error translating text:", error);
+            console.error("Error during translation API call:", error);
             return 'Translation failed: Network error or API issue.';
           }
         };
 
-        // Event listener for input changes to detect language
-        input.addEventListener('input', async () => {
-          const text = input.value;
+        // --- Event Listeners ---
+
+        // Listen for changes in the input textarea to detect language in real-time
+        inputTextarea.addEventListener('input', async () => {
+          const text = inputTextarea.value;
           if (!text.trim()) {
-            detectedSpan.textContent = 'not sure what language this is';
+            detectedLanguageSpan.textContent = 'not sure what language this is';
             return;
           }
 
           const { detectedLanguage, confidence } = await detectLanguage(text);
-          detectedSpan.textContent = `${(confidence * 100).toFixed(1)}% sure that this is ${languageTagToHumanReadable(detectedLanguage, 'en')}`;
+          detectedLanguageSpan.textContent = `${(confidence * 100).toFixed(1)}% sure that this is ${getHumanReadableLanguage(detectedLanguage, 'en')}`;
         });
 
-        // Event listener for form submission to translate
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const textToTranslate = input.value.trim();
-          const targetLang = languageSelect.value;
+        // Listen for the form submission to initiate translation
+        translatorForm.addEventListener('submit', async (event) => {
+          event.preventDefault(); // Prevent the default form submission (page reload)
+
+          const textToTranslate = inputTextarea.value.trim();
+          const targetLanguage = targetLanguageSelect.value;
 
           if (!textToTranslate) {
-            output.textContent = 'Please enter text to translate.';
+            outputDisplay.textContent = 'Please enter text to translate.';
             return;
           }
 
-          output.textContent = ''; // Clear previous output
-          loadingIndicator.classList.remove('hidden'); // Show loading indicator
-          translateButton.disabled = true; // Disable button during translation
+          // Clear previous output and show loading indicator
+          outputDisplay.textContent = '';
+          // Ensure loadingMessage exists before trying to access its classList
+          if (loadingMessage) {
+            loadingMessage.classList.remove('hidden'); // Show "Translating..." message
+          }
+          translateButton.disabled = true; // Disable button to prevent multiple clicks
 
           try {
-            const translatedText = await translateText(textToTranslate, targetLang);
-            output.textContent = translatedText;
-          } catch (err) {
-            output.textContent = 'An error occurred during translation. Please try again.';
-            console.error(err);
+            // Perform the translation
+            const translatedText = await translateText(textToTranslate, targetLanguage);
+            outputDisplay.textContent = translatedText; // Display the translated text
+          } catch (error) {
+            outputDisplay.textContent = 'An error occurred during translation. Please try again.';
+            console.error("Translation process error:", error);
           } finally {
-            loadingIndicator.classList.add('hidden'); // Hide loading indicator
-            translateButton.disabled = false; // Re-enable button
+            // Hide loading indicator and re-enable button
+            if (loadingMessage) {
+              loadingMessage.classList.add('hidden');
+            }
+            translateButton.disabled = false;
           }
         });
 
-        // Trigger initial language detection on load
-        input.dispatchEvent(new Event('input'));
+        // Trigger initial language detection when the page loads with default text
+        inputTextarea.dispatchEvent(new Event('input'));
       });
     </script>
   </body>
