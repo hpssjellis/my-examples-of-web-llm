@@ -513,13 +513,13 @@
         // REMOVES INFORMATION BEFORE AND AFTER HTML TAGS
         function extractHTMLWithRegex(str) {
           // The 's' flag makes '.' match newlines
-          const regex = /<!DOCTYPE html>[\s\S]*?<\/HTML>/s;
+          const regex = /<!DOCTYPE html>[\s\S]*?<\/html>/s;
           const match = str.match(regex);
         
           if (match && match.length > 0) {
             return match[0];
           } else {
-            return "Error: HTML structure not found.";
+            return str;
           }
         }
 
