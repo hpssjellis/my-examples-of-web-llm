@@ -130,12 +130,14 @@
             Github for these gitpages at <a href="https://github.com/hpssjellis/my-examples-of-web-llm">https://github.com/hpssjellis/my-examples-of-web-llm</a><br>
             Main Demo index at <a href="https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html">https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html</a>
         </p>
+        <details open>
+           <summary>Help to setup Chrome flags if needed</summary>
         <p>
             This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
             Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome address bar:
             <input type="text" id="flagsLink" class="copy-input" value="chrome://flags" readonly>
             <button class="copy-button" onclick="copyFlagsLink()">Copy - tab</button><br>
-            Then search for "optimization-guide-on-device-model" and then search for "gemini-nano"
+            Then search for <input type="text" value="optimization-guide-on-device-model"> and then search for <input type="text" value=""gemini-nano">
         </p>
         <p>
             <ul>
@@ -148,8 +150,12 @@
                 <li><code>#proofreader-api-for-gemini-nano</code>(set to Enabled) </li>
             </ul>
             The Gemini Nano model will download the first time you use it. That will be about 4.0 GB of download and will need
-            about 20 GB saving space for the final folders.
+            about 20 GB saving space for the final folders. <br><br>
+          Note: User Ctrl-Shift-i to show comments
+
+        
         </p>
+        </details>details>
         <div>
             <!-- Buttons for LanguageModel -->
             <button onclick="checkAvailability('languageModel')">Check LLM API Availability</button>
@@ -609,5 +615,10 @@
             renderHtmlBtn.disabled = true;
         };
     </script>
+
+
+    Use at your own risk!
+    <br>
+    By Jeremy Ellis <a href="https://ca.linkedin.com/in/jeremy-ellis-4237a9bb"> LinkedIn </a>
 </body>
 </html>
