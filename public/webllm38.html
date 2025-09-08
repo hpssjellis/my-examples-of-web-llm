@@ -508,12 +508,24 @@
         }
         
         // --- New HTML Preview Functions ---
+        // REMOVES INFORMATION BEFORE AND AFTER HTML TAGS
+        function extractHTMLWithRegex(str) {
+          // The 's' flag makes '.' match newlines
+          const regex = /<!DOCTYPE html>[\s\S]*?<\/HTML>/s;
+          const match = str.match(regex);
+        
+          if (match && match.length > 0) {
+            return match[0];
+          } else {
+            return "Error: HTML structure not found.";
+          }
+        }
 
         /**
          * Copies the content of the main output textarea to the HTML preview textarea.
          */
         function viewHtmlOutput() {
-            htmlCodePreview.value = outputDiv.value;
+            htmlCodePreview.value = extractHTMLWithRegex(outputDiv.value);
             displayOutput("HTML code copied to the preview box. Click 'Render HTML in New Tab' to view it!", 'info', true);
         }
 
