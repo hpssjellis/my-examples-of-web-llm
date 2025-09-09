@@ -412,7 +412,7 @@
             let defaultText = '';
             let isStreaming = false;
             let usesProofreader = false;
-          if (jsonOutputCheckbox.checked) {
+          if (jsonOutputCheckbox.checked && !jsonInputCheckbox.checked) {
              defaultText = 'Use JSON for the output format. ' 
           }
           if (jsonInputCheckbox.checked) {
@@ -449,15 +449,37 @@
                     break;
             }
 
+            if (  jsonInputCheckbox.checked) {
+               if (  jsonOutputCheckbox.checked) {
+                   defaultText += `",
+    "format":"TEXT`
+            } 
+               } else {
+                 `",
+    "format":"JSON`  
+               }    
+             defaultText += `"
+}`
+            }
+           
+
+
+            
+/*
             if ( (!jsonOutputCheckbox.checked) && jsonInputCheckbox.checked) { 
                 defaultText += `",
     "format":"TEXT`
             } 
             
             if (jsonInputCheckbox.checked) {
-              defaultText += `"
+              defaultText += `",
+                  "format":"JSON`
 }`;
             }
+
+
+
+            */
             promptInput.value = defaultText;
             currentPromptMode = { type: type, isStreaming: isStreaming, usesProofreader: usesProofreader };
             displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true);
