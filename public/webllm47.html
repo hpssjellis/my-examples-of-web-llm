@@ -448,6 +448,12 @@
                     defaultText = "";
                     break;
             }
+
+            if (!jsonOutputCheckbox.checked) { 
+                defaultText += `"
+    "format":"TEXT`
+            } 
+            
             if (jsonInputCheckbox.checked) {
               defaultText += `"
 }`;
