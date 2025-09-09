@@ -449,8 +449,8 @@
                     break;
             }
 
-            if (!jsonOutputCheckbox.checked) { 
-                defaultText += `"
+            if ( (!jsonOutputCheckbox.checked) && jsonInputCheckbox.checked) { 
+                defaultText += `",
     "format":"TEXT`
             } 
             
