@@ -477,7 +477,6 @@
             myJsonInputCheckbox.checked = myJsonInput;
             myJsonOutputCheckbox.checked = myJsonOutput;
             myDisplayOutput(`Prompt prepared for "${myType}" mode. Edit text and click "Execute Prompt".`, 'info', true);
-            myExecutePromptBtn.disabled = false;
         }
 
         /**
@@ -557,7 +556,11 @@
                         { type: "image", value: myImageBlob },
                         { type: "text", value: myPromptText }
                     ];
-                    const myResult = await myLanguageModelSession.prompt(myPromptParts);
+                    // The prompt method expects an object with a 'role' and 'content' property
+                    const myResult = await myLanguageModelSession.prompt({
+                        role: 'user',
+                        content: myPromptParts
+                    });
                     myLastGeneratedText = myResult;
                     myOutputDiv.value = myResult;
 
