@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Demo</title>
+    <!-- Use Tailwind CSS for modern styling and responsiveness -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loading {
+            color: #2563eb; /* Tailwind's blue-600 */
+            font-style: italic;
+        }
+        .error {
+            color: #ef4444; /* Tailwind's red-500 */
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-6 sm:p-10 border-t-8 border-blue-600">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Gemini Prompt API Demo</h1>
+            <p class="text-gray-600 mt-2">
+                A simple client-side example using the Gemini API to generate text.
+            </p>
+        </header>
+
+        <main class="space-y-6">
+            <div class="bg-blue-50 border-l-4 border-blue-200 text-blue-800 p-4 rounded-md" role="alert">
+                <p class="font-semibold">Note:</p>
+                <p class="text-sm">
+                    This version uses a direct API call, which is a more stable and cross-browser way to interact with large language models than the experimental `LanguageModel` API.
+                </p>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Edit Prompt:</h3>
+                <textarea id="promptInput" rows="5" placeholder="Enter your prompt here..."
+                          class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"></textarea>
+            </div>
+
+            <div class="flex justify-center">
+                <button id="executePromptBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Execute Prompt
+                </button>
+            </div>
+
+            <hr class="border-gray-300">
+
+            <div>
+                <h2 class="text-xl font-semibold text-gray-700 mb-2">Output:</h2>
+                <div id="timerDisplay" class="text-sm text-gray-600 h-6"></div>
+                <textarea id="output" rows="10" readonly
+                          class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Global variable for the Gemini API Key.
+        // The API key is provided by the canvas environment.
+        const apiKey = ""; // Leave as-is
+
+        // Global variables for timer and output tracking
+        let startTime = 0;
+        let timerInterval = null;
+        let lastGeneratedText = '';
+
+        // Get references to output and buttons
+        const promptInput = document.getElementById('promptInput');
+        const executePromptBtn = document.getElementById('executePromptBtn');
+        const outputDiv = document.getElementById('output');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
+
+        /**
+         * Displays a message in the output area.
+         */
+        function displayOutput(message, type = 'info', append = false) {
+            if (append) {
+                outputDiv.value += message;
+            } else {
+                outputDiv.value = message;
+            }
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        /**
+         * Updates the timer display.
+         */
+        function updateTimerDisplay() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            timerDisplay.textContent = `Thinking... ${elapsed.toFixed(2)}s`;
+        }
+
+        /**
+         * Executes the prompt by calling the Gemini API.
+         */
+        async function executePrompt() {
+            const promptText = promptInput.value.trim();
+            if (!promptText) {
+                displayOutput('Prompt text cannot be empty!', 'error');
+                return;
+            }
+
+            // Start the timer and show a loading message
+            startTime = Date.now();
+            lastGeneratedText = '';
+            timerDisplay.textContent = `Thinking... 0.00s`;
+            timerInterval = setInterval(updateTimerDisplay, 100);
+            executePromptBtn.disabled = true;
+            outputDiv.value = "";
+            outputDiv.classList.add("loading");
+
+            // Construct the payload for the API call
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }],
+            };
+
+            try {
+                const response = await fetch(`${API_URL}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error.message || `API error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                lastGeneratedText = text;
+                displayOutput(text);
+
+            } catch (error) {
+                displayOutput(`Error executing prompt: ${error.message}`, 'error');
+                console.error('Error executing prompt:', error);
+                lastGeneratedText = '';
+            } finally {
+                clearInterval(timerInterval);
+                const endTime = Date.now();
+                const durationSeconds = (endTime - startTime) / 1000;
+                const charCount = lastGeneratedText.length;
+                const wordCount = lastGeneratedText.split(/\s+/).filter(word => word.length > 0).length;
+                const charsPerSecond = durationSeconds > 0 ? (charCount / durationSeconds).toFixed(2) : '0.00';
+                const wordsPerSecond = durationSeconds > 0 ? (wordCount / durationSeconds).toFixed(2) : '0.00';
+
+                timerDisplay.innerHTML =
+                    `Completed in ${durationSeconds.toFixed(2)}s<br>` +
+                    `Chars: ${charCount} (${charsPerSecond}/s)<br>` +
+                    `Words: ${wordCount} (${wordsPerSecond}/s)`;
+
+                executePromptBtn.disabled = false;
+                outputDiv.classList.remove("loading");
+            }
+        }
+        
+        // Add event listener to the execute button
+        executePromptBtn.addEventListener('click', executePrompt);
+
+        // Pre-fill prompt on page load
+        window.onload = () => {
+             promptInput.value = "Write a short, positive affirmation for the day.";
+        };
+    </script>
+</body>
+</html>
