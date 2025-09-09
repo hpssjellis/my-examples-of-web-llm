@@ -415,7 +415,10 @@
           if (jsonOutputCheckbox.checked) {
              defaultText = 'Use JSON for the output format. ' 
           }
-          if (jsonInputCheckbox.checked) {alert('in')}
+          if (jsonInputCheckbox.checked) {
+              defaultText = `{
+                  "text": "` + defaultText;
+          }
 
             switch (type) {
                 case 'simple':
@@ -445,6 +448,9 @@
                     defaultText = "";
                     break;
             }
+            if (jsonInputCheckbox.checked) {
+              defaultText += `}`;
+          }
             promptInput.value = defaultText;
             currentPromptMode = { type: type, isStreaming: isStreaming, usesProofreader: usesProofreader };
             displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true);
