@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Demo with Image</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+        .loading {
+            color: blue;
+            font-style: italic;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        #output {
+            margin-top: 1em;
+            border: 1px solid black;
+            padding: 0.5em;
+            min-height: 200px;
+            resize: vertical;
+            width: 98%;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 98%;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        #timerDisplay {
+            margin-top: 1em;
+            font-weight: bold;
+            color: #007bff;
+            min-height: 1.5em;
+        }
+        #dropArea {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 1em;
+            cursor: pointer;
+        }
+        #dropArea.dragover {
+            border-color: #007bff;
+            background-color: #e6f7ff;
+        }
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #dragText {
+            font-style: italic;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gemini API Demo</h1>
+        <p>
+            A starting point for a client-side LLM web application.
+            This version supports both text and image input.
+        </p>
+
+        <div>
+            <h3>Add Image:</h3>
+            <div id="dropArea">
+                <p id="dragText">Drag an image here or click to select a file.</p>
+                <img id="imagePreview" alt="Image preview">
+            </div>
+
+            <h3>Edit Prompt:</h3>
+            <textarea id="promptInput" rows="5" placeholder="Type your prompt here."></textarea>
+            <button id="executePromptBtn">Execute Prompt</button>
+        </div>
+
+        <h2>Output:</h2>
+        <div id="timerDisplay"></div>
+        <textarea id="output" rows="10" readonly>No output yet. Drag and drop an image, type a prompt, or both, then click the button.</textarea>
+    </div>
+
+    <script>
+        const apiKey = "";
+        let startTime = 0;
+        let timerInterval = null;
+        let lastGeneratedText = '';
+        let base64Image = null;
+
+        const promptInput = document.getElementById('promptInput');
+        const executePromptBtn = document.getElementById('executePromptBtn');
+        const outputDiv = document.getElementById('output');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const dropArea = document.getElementById('dropArea');
+        const imagePreview = document.getElementById('imagePreview');
+        const dragText = document.getElementById('dragText');
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
+
+        function displayOutput(message, type = 'info', append = false) {
+            if (append) {
+                outputDiv.value += message;
+            } else {
+                outputDiv.value = message;
+            }
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        function updateTimerDisplay() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            timerDisplay.textContent = `Thinking... ${elapsed.toFixed(2)}s`;
+        }
+
+        async function executePrompt() {
+            const promptText = promptInput.value.trim();
+            if (!promptText && !base64Image) {
+                displayOutput('Please enter a prompt or add an image!', 'error');
+                return;
+            }
+
+            startTime = Date.now();
+            lastGeneratedText = '';
+            timerDisplay.textContent = `Thinking... 0.00s`;
+            timerInterval = setInterval(updateTimerDisplay, 100);
+            executePromptBtn.disabled = true;
+            outputDiv.value = "";
+            outputDiv.classList.add("loading");
+
+            // Construct the multimodal payload
+            const contents = [];
+            if (base64Image) {
+                // Add image part
+                const [mimeType, data] = base64Image.split(';base64,');
+                contents.push({
+                    inlineData: {
+                        mimeType: mimeType.replace('data:', ''),
+                        data: data
+                    }
+                });
+            }
+            if (promptText) {
+                // Add text part
+                contents.push({ text: promptText });
+            }
+            
+            const payload = { contents: [{ parts: contents }] };
+
+            try {
+                const response = await fetch(`${API_URL}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error.message || `API error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                lastGeneratedText = text;
+                displayOutput(text);
+
+            } catch (error) {
+                displayOutput(`Error executing prompt: ${error.message}`, 'error');
+                console.error('Error executing prompt:', error);
+                lastGeneratedText = '';
+            } finally {
+                clearInterval(timerInterval);
+                const endTime = Date.now();
+                const durationSeconds = (endTime - startTime) / 1000;
+                const charCount = lastGeneratedText.length;
+                const wordCount = lastGeneratedText.split(/\s+/).filter(word => word.length > 0).length;
+                const charsPerSecond = durationSeconds > 0 ? (charCount / durationSeconds).toFixed(2) : '0.00';
+                const wordsPerSecond = durationSeconds > 0 ? (wordCount / durationSeconds).toFixed(2) : '0.00';
+
+                timerDisplay.innerHTML =
+                    `Completed in ${durationSeconds.toFixed(2)}s<br>` +
+                    `Chars: ${charCount} (${charsPerSecond}/s)<br>` +
+                    `Words: ${wordCount} (${wordsPerSecond}/s)`;
+
+                executePromptBtn.disabled = false;
+                outputDiv.classList.remove("loading");
+            }
+        }
+
+        // --- Drag and Drop Logic ---
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    base64Image = event.target.result;
+                    imagePreview.src = base64Image;
+                    imagePreview.style.display = 'block';
+                    dragText.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                displayOutput('Please drop a valid image file!', 'error');
+                base64Image = null;
+                imagePreview.style.display = 'none';
+                dragText.style.display = 'block';
+            }
+            unhighlight(e);
+        }
+
+        // --- Event Listeners ---
+        executePromptBtn.addEventListener('click', executePrompt);
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        // Allow clicking on the drop area to select a file
+        dropArea.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        base64Image = event.target.result;
+                        imagePreview.src = base64Image;
+                        imagePreview.style.display = 'block';
+                        dragText.style.display = 'none';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        });
+    </script>
+</body>
+</html>
