@@ -218,7 +218,7 @@
             <button id="myRenderHtmlBtn" onclick="myRenderHtmlInNewTab()">Render HTML in New Tab</button>
             <button id="myCopyHtmlBtn" onclick="myCopyHtmlToClipboard()">Copy HTML</button>
         </div>
-        <textarea id="myHtmlCodePreview" rows="10" placeholder="The HTML code will appear here after clicking 'View HTML Output'."></textarea>
+        <textarea id="myHtmlCodePreview" rows="10" placeholder="The HTML code will appear here after clicking 'View HTML to Edit'."></textarea>
         <!-- End of new section -->
 
     </div>
@@ -557,12 +557,13 @@
                         { type: "text", value: myPromptText }
                     ];
                     // The prompt method expects an object with a 'role' and 'content' property
-                    const myResult = await myLanguageModelSession.prompt({
+                    const myResponse = await myLanguageModelSession.prompt({
                         role: 'user',
                         content: myPromptParts
                     });
-                    myLastGeneratedText = myResult;
-                    myOutputDiv.value = myResult;
+                    // The response is an object, so we need to access its `text` property.
+                    myLastGeneratedText = myResponse.text;
+                    myOutputDiv.value = myLastGeneratedText;
 
                 } else if (myCurrentPromptMode.myIsStreaming) {
                     const myStream = await myLanguageModelSession.promptStreaming(myPromptText);
