@@ -412,31 +412,33 @@
             let defaultText = '';
             let isStreaming = false;
             let usesProofreader = false;
-          if (jsonOutputCheckbox.checked) {alert('out')}
+          if (jsonOutputCheckbox.checked) {
+             defaultText = 'Use JSON for the output format. ' 
+          }
           if (jsonInputCheckbox.checked) {alert('in')}
 
             switch (type) {
                 case 'simple':
-                    defaultText = "Write a short, positive affirmation for the day.";
+                    defaultText += "Write a short, positive affirmation for the day.";
                     break;
                 case 'streaming':
-                    defaultText = "Tell me a short story about a friendly robot exploring an ancient library. Make it at least 50 words.";
+                    defaultText += "Tell me a short story about a friendly robot exploring an ancient library. Make it at least 50 words.";
                     isStreaming = true;
                     break;
                 case 'multimodal':
-                    defaultText = "Describe a sunny day at the beach, including the sounds and smells.";
+                    defaultText += "Describe a sunny day at the beach, including the sounds and smells.";
                     break;
                 case 'summarize':
-                    defaultText = "Summarize the following text: The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
+                    defaultText += "Summarize the following text: The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
                     break;
                 case 'write':
-                    defaultText = "Write a short paragraph about the benefits of reading books.";
+                    defaultText += "Write a short paragraph about the benefits of reading books.";
                     break;
                 case 'rewrite':
-                    defaultText = "Rewrite the following sentence to sound more exciting: I went to the store and bought some apples.";
+                    defaultText += "Rewrite the following sentence to sound more exciting: I went to the store and bought some apples.";
                     break;
                 case 'proofread':
-                    defaultText = "I seen him yesterday at the store, and he bought two loafs of bread.";
+                    defaultText += "I seen him yesterday at the store, and he bought two loafs of bread.";
                     usesProofreader = true;
                     break;
                 default:
