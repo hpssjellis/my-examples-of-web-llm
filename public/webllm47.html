@@ -463,23 +463,6 @@
             }
            
 
-
-            
-/*
-            if ( (!jsonOutputCheckbox.checked) && jsonInputCheckbox.checked) { 
-                defaultText += `",
-    "format":"TEXT`
-            } 
-            
-            if (jsonInputCheckbox.checked) {
-              defaultText += `",
-                  "format":"JSON`
-}`;
-            }
-
-
-
-            */
             promptInput.value = defaultText;
             currentPromptMode = { type: type, isStreaming: isStreaming, usesProofreader: usesProofreader };
             displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true);
