@@ -1,0 +1,317 @@
+<!doctype html>
+<html>
+<head>
+  <title>Gemini Nano Prompt API Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+    h1 { font-size: 2em; }
+    h3 { margin-top: 0; }
+    #container { display: flex; flex-direction: column; }
+    .input-box { display: flex; flex-direction: column; }
+    .status-container { margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; background-color: #f9f9f9; }
+    .status-container h4 { margin: 0 0 10px 0; }
+    #status { color: gray; }
+    #output { white-space: pre-wrap; word-wrap: break-word; }
+    textarea { width: 100%; box-sizing: border-box; font-family: monospace; }
+    button { padding: 8px; margin: 2px; }
+    #progress { color: #007bff; }
+    .output-container { border: 1px solid #ccc; padding: 10px; margin-top: 10px; border-radius: 8px; }
+    .output-container h4 { margin-top: 0; }
+    .error-message { color: red; }
+    details { border: 1px solid #ccc; border-radius: 4px; padding: 0.5em 0.5em 0; margin: 1em 0; }
+    summary { font-weight: bold; margin: -0.5em -0.5em 0; padding: 0.5em; cursor: pointer; }
+    details[open] { padding: 0.5em; }
+    details[open] summary { border-bottom: 1px solid #ccc; margin-bottom: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>Gemini Nano Prompt API Demo</h1>
+  <h3>on-device AI for Chrome</h3>
+  <div id="container">
+    <details>
+      <summary>Help</summary>
+      <p>This page demonstrates how to use the Gemini Nano Prompt API (`LanguageModel` API) and the Proofreader API. These are powerful on-device models that run directly in your Chrome browser.</p>
+      <p>To enable them, you need to turn on some flags in Chrome. In your browser's address bar, type `chrome://flags` and enable these two flags:</p>
+      <ul>
+        <li>`chrome://flags/#prompt-api-for-gemini-nano`</li>
+        <li>`chrome://flags/#proofreader-api-for-gemini-nano`</li>
+      </ul>
+      <p>Once enabled, restart Chrome, and then come back to this page.</p>
+    </details>
+
+    <div class="status-container">
+      <h4>Status</h4>
+      <p id="status">Page Loaded</p>
+      <p id="progress"></p>
+    </div>
+
+    <div>
+      <h4>Setup</h4>
+      <p>
+        <button id="myCreateLanguageModelButton" onclick="myCreateLanguageModelSession()">Create Language Model Session</button>
+        <button id="myCreateProofreaderButton" onclick="myCreateProofreaderSession()">Create Proofreader Session</button>
+      </p>
+    </div>
+
+    <div class="input-box">
+      <h4>Prompt</h4>
+      <div style="display: flex; flex-wrap: wrap;">
+        <button onclick="myPreparePrompt('short_story')">Prepare Short Story Prompt</button>
+        <button onclick="myPreparePrompt('explain_code')">Prepare Explain Code Prompt</button>
+        <button onclick="myPreparePrompt('html')">Prepare HTML Prompt</button>
+        <button onclick="myPreparePrompt('proofread')">Prepare Proofread Prompt</button>
+        <button onclick="myPreparePrompt('multimodal')">Prepare Multimodal Prompt (Text Only)</button>
+        <input type="file" id="myImageInput" accept="image/*" style="margin-left: 10px;">
+      </div>
+      <textarea id="myPromptInput" rows="10" placeholder="Enter your prompt here..."></textarea>
+      <p>
+        <button id="myExecuteButton" onclick="myExecutePrompt()">Execute Prompt (non-streaming)</button>
+        <button id="myExecuteStreamButton" onclick="myExecuteStreamPrompt()">Execute Prompt (streaming)</button>
+      </p>
+    </div>
+
+    <div class="output-container">
+      <h4>Output</h4>
+      <pre id="myOutput"></pre>
+      <p id="myPerformanceMetrics"></p>
+    </div>
+
+    <div class="output-container">
+      <h4>Generated HTML Preview</h4>
+      <p>
+        <button id="myCopyHtmlButton" onclick="myCopyHtmlToClipboard()">Copy HTML Code</button>
+        <button id="myViewHtmlButton" onclick="myViewHtmlOutput()">View HTML Code</button>
+        <button id="myRenderHtmlButton" onclick="myRenderHtmlInNewTab()">Render HTML in New Tab</button>
+      </p>
+      <textarea id="myHtmlCodePreview" rows="10" style="display: none;"></textarea>
+    </div>
+  </div>
+
+  <script>
+    let myLanguageModelSession;
+    let myProofreaderSession;
+    let myImageData = null;
+    let myPromptMode;
+    let myOutputElement = document.getElementById('myOutput');
+    let myStatusElement = document.getElementById('myStatus');
+    let myProgressElement = document.getElementById('myProgress');
+    let myPromptInput = document.getElementById('myPromptInput');
+    let myHtmlCodePreview = document.getElementById('myHtmlCodePreview');
+
+    // Check API availability on page load.
+    window.onload = function() {
+      myCheckAvailability('LanguageModel').then(myLanguageModelAvailable => {
+        myCheckAvailability('Proofreader').then(myProofreaderAvailable => {
+          document.getElementById('myCreateLanguageModelButton').disabled = !myLanguageModelAvailable;
+          document.getElementById('myCreateProofreaderButton').disabled = !myProofreaderAvailable;
+          myUpdateStatus(myLanguageModelAvailable ? 'LanguageModel API Available' : 'LanguageModel API Not Available. Check chrome://flags.');
+          myUpdateStatus(myProofreaderAvailable ? 'Proofreader API Available' : 'Proofreader API Not Available. Check chrome://flags.');
+        });
+      });
+    };
+
+    async function myCheckAvailability(apiName) {
+      if (apiName === 'LanguageModel') {
+        const myAvailable = await window.ai.canCreateLanguageModel();
+        return myAvailable !== 'no';
+      }
+      if (apiName === 'Proofreader') {
+        const myAvailable = await window.ai.canCreateProofreader();
+        return myAvailable !== 'no';
+      }
+      return false;
+    }
+
+    async function myCreateLanguageModelSession() {
+      myUpdateStatus('Creating Language Model session...');
+      try {
+        const myMonitor = myProgress => {
+          myProgressElement.innerText = `Downloading model: ${myProgress.value * 100}%`;
+          if (myProgress.state === 'ready') {
+            myProgressElement.innerText = '';
+          }
+        };
+        myLanguageModelSession = await window.ai.createLanguageModel({ monitor: myMonitor });
+        document.getElementById('myExecuteButton').disabled = false;
+        document.getElementById('myExecuteStreamButton').disabled = false;
+        myUpdateStatus('Language Model Session Created.');
+      } catch (myError) {
+        myUpdateStatus('Error creating Language Model session: ' + myError.message);
+      }
+    }
+
+    async function myCreateProofreaderSession() {
+      myUpdateStatus('Creating Proofreader session...');
+      try {
+        myProofreaderSession = await window.ai.createProofreader();
+        document.getElementById('myExecuteButton').disabled = false;
+        myUpdateStatus('Proofreader Session Created.');
+      } catch (myError) {
+        myUpdateStatus('Error creating Proofreader session: ' + myError.message);
+      }
+    }
+
+    function myUpdateStatus(myMessage) {
+      myStatusElement.innerText = myMessage;
+    }
+
+    function myPreparePrompt(myType) {
+      myPromptMode = myType;
+      switch (myType) {
+        case 'short_story':
+          myPromptInput.value = 'Write a very short story about a brave knight and a timid dragon.';
+          break;
+        case 'explain_code':
+          myPromptInput.value = 'Explain the following JavaScript code:\n\n```javascript\nfunction factorial(n) {\n  if (n === 0) return 1;\n  return n * factorial(n - 1);\n}\n```';
+          break;
+        case 'html':
+          myPromptInput.value = 'Write a simple, single-file HTML page with a heading, a paragraph, and a button. Use some CSS for styling.';
+          break;
+        case 'proofread':
+          myPromptInput.value = 'Correct the following text: "The quick brown fox jumps over the lazy dog."';
+          break;
+        case 'multimodal':
+          myPromptInput.value = 'Describe the image, including any objects or people you see. Also, give an estimate of the time of day and the location.';
+          break;
+      }
+    }
+
+    // New function to handle image file selection
+    async function myHandleImageChange(myEvent) {
+      const myFile = myEvent.target.files[0];
+      if (!myFile) {
+        myImageData = null;
+        return;
+      }
+
+      myUpdateStatus('Reading image file...');
+      const myReader = new FileReader();
+      myReader.onload = async () => {
+        const myBuffer = myReader.result;
+        const myBlob = new Blob([myBuffer], { type: myFile.type });
+        const myImage = new Image();
+        const myObjectUrl = URL.createObjectURL(myBlob);
+
+        myImage.onload = () => {
+          const myCanvas = document.createElement('canvas');
+          const myContext = myCanvas.getContext('2d');
+          myCanvas.width = myImage.width;
+          myCanvas.height = myImage.height;
+          myContext.drawImage(myImage, 0, 0);
+          myImageData = myContext.getImageData(0, 0, myImage.width, myImage.height);
+          URL.revokeObjectURL(myObjectUrl);
+          myUpdateStatus('Image loaded and ready.');
+        };
+        myImage.src = myObjectUrl;
+      };
+      myReader.readAsArrayBuffer(myFile);
+    }
+    document.getElementById('myImageInput').onchange = myHandleImageChange;
+
+    async function myExecutePrompt() {
+      myOutputElement.innerText = '';
+      myUpdateStatus('Executing prompt...');
+      const myStartTime = performance.now();
+      let myPrompt = myPromptInput.value;
+      let myResult;
+
+      try {
+        if (myPromptMode === 'proofread') {
+          myResult = await myProofreaderSession.proofread(myPrompt);
+          myOutputElement.innerText = myResult;
+        } else {
+          // Construct the prompt with text and image parts if an image is loaded
+          let myPromptParts = [{ text: myPrompt }];
+          if (myImageData) {
+            myPromptParts.push({ imageData: myImageData });
+            myPromptMode = 'multimodal_with_image'; // Update mode for metric display
+          }
+
+          myResult = await myLanguageModelSession.prompt(myPromptParts);
+          myOutputElement.innerText = myResult;
+        }
+
+        const myEndTime = performance.now();
+        const myDuration = myEndTime - myStartTime;
+        const myChars = myOutputElement.innerText.length;
+        const myPerformanceText = `Non-streaming prompt took ${myDuration.toFixed(2)} ms (${(myChars / (myDuration / 1000)).toFixed(2)} chars/s).`;
+        document.getElementById('myPerformanceMetrics').innerText = myPerformanceText;
+        myUpdateStatus('Prompt execution complete.');
+      } catch (myError) {
+        myUpdateStatus('Error executing prompt: ' + myError.message);
+      }
+    }
+
+    async function myExecuteStreamPrompt() {
+      myOutputElement.innerText = '';
+      myUpdateStatus('Executing streaming prompt...');
+      const myStartTime = performance.now();
+      let myPrompt = myPromptInput.value;
+      let myFullText = '';
+      let myCharsWritten = 0;
+
+      try {
+        let myPromptParts = [{ text: myPrompt }];
+        if (myImageData) {
+          myPromptParts.push({ imageData: myImageData });
+        }
+
+        for await (const myChunk of myLanguageModelSession.promptStreaming(myPromptParts)) {
+          myOutputElement.innerText += myChunk;
+          myFullText += myChunk;
+          myCharsWritten += myChunk.length;
+        }
+
+        const myEndTime = performance.now();
+        const myDuration = myEndTime - myStartTime;
+        const myPerformanceText = `Streaming prompt took ${myDuration.toFixed(2)} ms (${(myCharsWritten / (myDuration / 1000)).toFixed(2)} chars/s).`;
+        document.getElementById('myPerformanceMetrics').innerText = myPerformanceText;
+        myUpdateStatus('Streaming prompt complete.');
+      } catch (myError) {
+        myUpdateStatus('Error executing streaming prompt: ' + myError.message);
+      }
+    }
+
+    function myExtractHTMLWithRegex(myText) {
+      const myRegex = /<!DOCTYPE html>.*<\/html>/s;
+      const myMatch = myText.match(myRegex);
+      return myMatch ? myMatch[0] : null;
+    }
+
+    function myViewHtmlOutput() {
+      const myHtmlCode = myExtractHTMLWithRegex(myOutputElement.innerText);
+      if (myHtmlCode) {
+        myHtmlCodePreview.style.display = 'block';
+        myHtmlCodePreview.value = myHtmlCode;
+      } else {
+        alert('No HTML code found in the output. Please generate HTML first.');
+      }
+    }
+
+    function myRenderHtmlInNewTab() {
+      const myHtmlCode = myExtractHTMLWithRegex(myOutputElement.innerText);
+      if (myHtmlCode) {
+        const myNewTab = window.open();
+        myNewTab.document.write(myHtmlCode);
+        myNewTab.document.close();
+      } else {
+        alert('No HTML code found to render.');
+      }
+    }
+
+    function myCopyHtmlToClipboard() {
+      const myHtmlCode = myExtractHTMLWithRegex(myOutputElement.innerText);
+      if (myHtmlCode) {
+        navigator.clipboard.writeText(myHtmlCode).then(() => {
+          alert('HTML code copied to clipboard!');
+        }).catch(err => {
+          console.error('Failed to copy: ', err);
+        });
+      } else {
+        alert('No HTML code found to copy.');
+      }
+    }
+  </script>
+</body>
+</html>
