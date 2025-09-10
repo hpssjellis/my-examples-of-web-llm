@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal Prompt Example</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .myContainer {
+            max-width: 600px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #myOutput {
+            margin-top: 20px;
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        #myStatus {
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="myContainer">
+        <h1>Small Multimodal Prompt</h1>
+        <p>This example demonstrates a prompt that combines text with a tiny Base64-encoded image.</p>
+        <p id="myStatus">Initializing...</p>
+        <button id="myExecuteButton" disabled>Execute Prompt</button>
+        <textarea id="myOutput" readonly placeholder="Output will appear here."></textarea>
+    </div>
+
+    <script>
+        let myLanguageModelSession;
+        let myImageData;
+
+        // Base64 string for a 1x1 pixel black image
+        const myBase64Image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+        // Function to convert a Base64 image to ImageData object
+        async function myBase64ToImageData(myBase64String) {
+            return new Promise((myResolve) => {
+                const myImage = new Image();
+                myImage.onload = () => {
+                    const myCanvas = document.createElement('canvas');
+                    const myContext = myCanvas.getContext('2d');
+                    myCanvas.width = myImage.width;
+                    myCanvas.height = myImage.height;
+                    myContext.drawImage(myImage, 0, 0);
+                    const myResult = myContext.getImageData(0, 0, myImage.width, myImage.height);
+                    myResolve(myResult);
+                };
+                myImage.src = myBase64String;
+            });
+        }
+
+        async function myCheckAPI() {
+            const myStatus = document.getElementById('myStatus');
+            const myExecuteButton = document.getElementById('myExecuteButton');
+
+            if (!window.ai || !window.ai.canCreateLanguageModel) {
+                myStatus.textContent = "Gemini Nano API not available. Please check chrome://flags.";
+                return;
+            }
+
+            try {
+                myStatus.textContent = "Creating language model session...";
+                myLanguageModelSession = await window.ai.createLanguageModel();
+                myImageData = await myBase64ToImageData(myBase64Image);
+                myStatus.textContent = "API is ready!";
+                myExecuteButton.disabled = false;
+            } catch (myError) {
+                myStatus.textContent = `Error: ${myError.message}`;
+                console.error(myError);
+            }
+        }
+
+        async function myExecutePrompt() {
+            const myOutput = document.getElementById('myOutput');
+            const myExecuteButton = document.getElementById('myExecuteButton');
+
+            myExecuteButton.disabled = true;
+            myOutput.value = 'Executing prompt...';
+
+            try {
+                // The prompt is an array of parts: a text part and an image part.
+                const myPromptParts = [
+                    { text: 'Describe the image. Is it a picture of something specific?' },
+                    { imageData: myImageData }
+                ];
+                
+                const myResult = await myLanguageModelSession.prompt(myPromptParts);
+                myOutput.value = myResult;
+            } catch (myError) {
+                myOutput.value = `Error: ${myError.message}`;
+                console.error(myError);
+            } finally {
+                myExecuteButton.disabled = false;
+            }
+        }
+
+        window.onload = () => {
+            myCheckAPI();
+            document.getElementById('myExecuteButton').onclick = myExecutePrompt;
+        };
+    </script>
+</body>
+</html>
