@@ -6,6 +6,20 @@
     <title>Gemini Nano Prompt API Demo</title>
     <style>
         /* Absolutely necessary CSS for basic readability and functionality */
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 0 auto;
+            max-width: 900px;
+            padding: 1em;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1, h3 {
+            color: #007bff;
+        }
+        
         .loading {
             color: blue; /* Simple blue for loading */
             font-style: italic;
@@ -14,19 +28,22 @@
             color: red; /* Simple red for errors */
             font-weight: bold;
         }
-        #output {
+        
+        #output, #htmlCodePreview {
             margin-top: 1em; /* Basic spacing */
-            border: 1px solid black; /* Simple border for clarity */
+            border: 1px solid #ccc; /* Simple border for clarity */
             padding: 0.5em; /* Basic padding */
             min-height: 200px; /* Give it a starting height */
             resize: vertical; /* Allow vertical resizing */
             width: 98%; /* Match the input textarea width */
             box-sizing: border-box; /* Include padding and border in the width */
         }
+        
         button:disabled {
             background-color: #cccccc; /* Keep disabled state clear */
             cursor: not-allowed;
         }
+        
         textarea {
             width: 98%; /* Make textarea responsive */
             margin-top: 1em;
@@ -35,6 +52,7 @@
             border: 1px solid #ccc;
             border-radius: 3px;
         }
+        
         .metrics {
             font-size: 0.9em;
             color: #555;
@@ -42,12 +60,14 @@
             border-top: 1px dashed #ccc;
             padding-top: 0.5em;
         }
+        
         #timerDisplay {
             margin-top: 1em;
             font-weight: bold;
             color: #007bff; /* A distinct color for the timer */
             min-height: 1.5em; /* Reserve space to prevent layout shift */
         }
+        
         .copy-container {
             display: flex;
             align-items: center;
@@ -57,6 +77,7 @@
             margin-left: auto; /* Center the container if parent is wider */
             margin-right: auto; /* Center the container if parent is wider */
         }
+        
         .copy-input {
             flex-grow: 1;
             padding: 8px;
@@ -64,6 +85,7 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+        
         .copy-button {
             padding: 8px 12px;
             background-color: #007bff;
@@ -72,9 +94,30 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        
         .copy-button:hover {
             background-color: #0056b3;
         }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .button-group button {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .button-group button:hover {
+            background-color: #e0e0e0;
+        }
+
     </style>
 </head>
 <body>
@@ -87,12 +130,15 @@
             Github for these gitpages at <a href="https://github.com/hpssjellis/my-examples-of-web-llm">https://github.com/hpssjellis/my-examples-of-web-llm</a><br>
             Main Demo index at <a href="https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html">https://hpssjellis.github.io/my-examples-of-web-llm/public/index.html</a>
         </p>
+        <details open>
+           <summary>Help to setup Chrome flags if needed</summary>
         <p>
             This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
             Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome address bar:
             <input type="text" id="flagsLink" class="copy-input" value="chrome://flags" readonly>
             <button class="copy-button" onclick="copyFlagsLink()">Copy - tab</button><br>
-            Then search for "optimization-guide-on-device-model" and then search for "gemini-nano"
+            Then search for <input type="text" size="35" value="optimization-guide-on-device-model"> and then search for
+            <input type="text" size="15" value="gemini-nano">
         </p>
         <p>
             <ul>
@@ -105,9 +151,14 @@
                 <li><code>#proofreader-api-for-gemini-nano</code>(set to Enabled) </li>
             </ul>
             The Gemini Nano model will download the first time you use it. That will be about 4.0 GB of download and will need
-            about 20 GB saving space for the final folders.
-        </p>
+            about 20 GB saving space for the final folders. <br><br>
+          Note: User Ctrl-Shift-i to show comments
 
+        
+        </p>
+        </details>
+
+        
         <div>
             <!-- Buttons for LanguageModel -->
             <button onclick="checkAvailability('languageModel')">Check LLM API Availability</button>
@@ -119,30 +170,47 @@
             <button id="createProofreaderSessionBtn" onclick="createProofreaderSession()">Create Proofreader Session</button>
             <hr>
             <!-- Buttons for prompt selection -->
-            <button id="prepSimplePromptBtn" onclick="preparePrompt('simple')">Prepare Simple Prompt</button>
-            <button id="prepStreamPromptBtn" onclick="preparePrompt('streaming')">Prepare Streaming Prompt</button>
-            <button id="prepMultimodalPromptBtn" onclick="preparePrompt('multimodal')">Prepare Multimodal Prompt (Text Only)</button>
-            <button id="prepSummarizeBtn" onclick="preparePrompt('summarize')">Prepare Summarize Text</button>
-            <button id="prepWriteBtn" onclick="preparePrompt('write')">Prepare Write Content</button>
-            <button id="prepRewriteBtn" onclick="preparePrompt('rewrite')">Prepare Rewrite Text</button>
-            <button id="prepProofreadBtn" onclick="preparePrompt('proofread')">Prepare Proofread Text</button>
+            <div class="button-group">
+                <button id="prepSimplePromptBtn" onclick="preparePrompt('simple')">Prepare Simple Prompt</button>
+                <button id="prepStreamPromptBtn" onclick="preparePrompt('streaming')">Prepare Streaming Prompt</button>
+                <button id="prepMultimodalPromptBtn" onclick="preparePrompt('multimodal')">Prepare Multimodal Prompt (Text Only)</button>
+                <button id="prepSummarizeBtn" onclick="preparePrompt('summarize')">Prepare Summarize Text</button>
+                <button id="prepWriteBtn" onclick="preparePrompt('write')">Prepare Write Content</button>
+                <button id="prepRewriteBtn" onclick="preparePrompt('rewrite')">Prepare Rewrite Text</button>
+                <button id="prepProofreadBtn" onclick="preparePrompt('proofread')">Prepare Proofread Text</button>
+            </div>
             <hr>
             <h3>Edit Prompt:</h3>
             <textarea id="promptInput" rows="5" cols="80" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
-
-            <button id="executePromptBtn" onclick="executePrompt()" disabled>Execute Prompt</button>
+            <div>
+              <input type="checkbox" id="jsonInputCheckbox">
+              <label for="jsonInputCheckbox">JSON Input</label>, 
+              <input type="checkbox" id="jsonOutputCheckbox"> 
+              <label for="jsonOutputCheckbox">JSON Output</label>,  
+              <button id="executePromptBtn" onclick="executePrompt()" disabled>Execute Prompt</button>
+            </div>
         </div>
-
         <h2>Output:</h2>
         <div id="timerDisplay"></div>
         <textarea id="output" rows="10" readonly>No output yet. Click a button to begin.</textarea>
-    </div>
 
+        <!-- New section for HTML preview and viewer -->
+        <h3>HTML Code Preview and Viewer</h3>
+        <div class="button-group">
+            <button id="viewHtmlBtn" onclick="viewHtmlOutput()">View HTML to Edit</button>
+            <button id="renderHtmlBtn" onclick="renderHtmlInNewTab()">Render HTML in New Tab</button>
+            <button id="myCopyHtmlBtn" onclick="myCopyHtmlToClipboard()">Copy HTML</button>
+        </div>
+        <textarea id="htmlCodePreview" rows="10" placeholder="The HTML code will appear here after clicking 'View HTML to Edit'."></textarea>
+        <!-- End of new section -->
+
+    </div>
     <script>
         // Global variables for the LanguageModel and Proofreader sessions
         let languageModelSession = null;
         let proofreaderSession = null;
         let currentPromptMode = { type: null, isStreaming: false };
+        let stopRequested = false;
 
         // Timer variables
         let startTime = 0;
@@ -165,7 +233,19 @@
         const prepWriteBtn = document.getElementById('prepWriteBtn');
         const prepRewriteBtn = document.getElementById('prepRewriteBtn');
         const prepProofreadBtn = document.getElementById('prepProofreadBtn');
+        
+        // References to the new HTML preview elements
+        const htmlCodePreview = document.getElementById('htmlCodePreview');
+        const viewHtmlBtn = document.getElementById('viewHtmlBtn');
+        const renderHtmlBtn = document.getElementById('renderHtmlBtn');
+        
+        // Reference to the new checkboxes
+        const jsonInputCheckbox = document.getElementById('jsonInputCheckbox');
+        const jsonOutputCheckbox = document.getElementById('jsonOutputCheckbox');
 
+        // Reference to the new copy button
+        const myCopyHtmlBtn = document.getElementById('myCopyHtmlBtn');
+        
         /**
          * Displays a message in the output area.
          */
@@ -332,45 +412,74 @@
             let defaultText = '';
             let isStreaming = false;
             let usesProofreader = false;
+          if (jsonOutputCheckbox.checked && !jsonInputCheckbox.checked) {
+             defaultText = 'Use JSON for the output format. ' 
+          }
+          if (jsonInputCheckbox.checked) {
+              defaultText = `{
+    "text": "` + defaultText;
+          }
 
             switch (type) {
                 case 'simple':
-                    defaultText = "Write a short, positive affirmation for the day.";
+                    defaultText += "Write a short, positive affirmation for the day.";
                     break;
                 case 'streaming':
-                    defaultText = "Tell me a short story about a friendly robot exploring an ancient library. Make it at least 50 words.";
+                    defaultText += "Make a single file html page about an interesting topic with some simple button activated Javascript.";
                     isStreaming = true;
                     break;
                 case 'multimodal':
-                    defaultText = "Describe a sunny day at the beach, including the sounds and smells.";
+                    defaultText += "Describe a sunny day at the beach, including the sounds and smells.";
                     break;
                 case 'summarize':
-                    defaultText = "Summarize the following text: The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
+                    defaultText += "Summarize the following text: The quick brown fox jumps over the lazy dog. This sentence is often used to demonstrate all letters of the alphabet. It's a pangram. A pangram is a sentence, phrase, or word that contains every letter of the alphabet at least once. Pangrams are used to display typefaces, test equipment, and develop skills in handwriting, calligraphy, and typing.";
                     break;
                 case 'write':
-                    defaultText = "Write a short paragraph about the benefits of reading books.";
+                    defaultText += "Write a short paragraph about the benefits of reading books.";
                     break;
                 case 'rewrite':
-                    defaultText = "Rewrite the following sentence to sound more exciting: I went to the store and bought some apples.";
+                    defaultText += "Rewrite the following sentence to sound more exciting: I went to the store and bought some apples.";
                     break;
                 case 'proofread':
-                    defaultText = "I seen him yesterday at the store, and he bought two loafs of bread.";
+                    defaultText += "I seen him yesterday at the store, and he bought two loafs of bread.";
                     usesProofreader = true;
                     break;
                 default:
                     defaultText = "";
                     break;
             }
+
+            if (  jsonInputCheckbox.checked) {
+               if (  jsonOutputCheckbox.checked) {
+                   defaultText += `",
+    "format":"JSON`
+            }  else {
+                  defaultText += `",
+    "format":"TEXT`  
+               }    
+             defaultText += `"
+}`
+            }
+           
+
             promptInput.value = defaultText;
             currentPromptMode = { type: type, isStreaming: isStreaming, usesProofreader: usesProofreader };
             displayOutput(`Prompt prepared for "${type}" mode. Edit text and click "Execute Prompt".`, 'info', true);
             executePromptBtn.disabled = false;
         }
 
+
         /**
          * Executes the prompt based on the current text in the textarea and the selected mode.
          */
         async function executePrompt() {
+            // Check if the button is currently a 'Stop' button and handle it.
+            if (executePromptBtn.textContent === 'Stop') {
+                stopRequested = true;
+                displayOutput("Prompt generation was stopped by the user.", "info", true);
+                return;
+            }
+
             if (currentPromptMode.usesProofreader && !proofreaderSession) {
                 displayOutput('Please create a Proofreader session first!', 'error', true);
                 return;
@@ -389,14 +498,18 @@
                 displayOutput('Prompt text cannot be empty!', 'error', true);
                 return;
             }
-
+            
+            stopRequested = false;
             startTime = Date.now();
             lastGeneratedText = '';
             timerDisplay.textContent = `Thinking... 0.00s`;
             timerInterval = setInterval(updateTimerDisplay, 100);
             outputDiv.value = '';
+            htmlCodePreview.value = ''; // Clear the HTML preview box
 
             disableAllButtons();
+            executePromptBtn.textContent = 'Stop';
+            executePromptBtn.disabled = false;
 
             try {
                 if (currentPromptMode.usesProofreader) {
@@ -412,6 +525,9 @@
                 } else if (currentPromptMode.isStreaming) {
                     const stream = await languageModelSession.promptStreaming(promptText);
                     for await (const chunk of stream) {
+                        if (stopRequested) {
+                          break; // Exit the loop
+                        }
                         lastGeneratedText += chunk;
                         outputDiv.value = lastGeneratedText;
                         outputDiv.scrollTop = outputDiv.scrollHeight;
@@ -441,8 +557,65 @@
                     `Words: ${wordCount} (${wordsPerSecond}/s)`;
 
                 enableAllButtons();
+                executePromptBtn.textContent = 'Execute Prompt'; // Restore button text
             }
         }
+        
+        // --- New HTML Preview Functions ---
+        // REMOVES INFORMATION BEFORE AND AFTER HTML TAGS
+        function extractHTMLWithRegex(str) {
+          // The 's' flag makes '.' match newlines
+          const regex = /<!DOCTYPE html>[\s\S]*?<\/html>/s;
+          const match = str.match(regex);
+        
+          if (match && match.length > 0) {
+            return match[0];
+          } else {
+            return "Error: HTML structure not found.";
+          }
+        }
+
+        /**
+         * Copies the content of the main output textarea to the HTML preview textarea.
+         */
+        function viewHtmlOutput() {
+            htmlCodePreview.value = extractHTMLWithRegex(outputDiv.value);
+            displayOutput("HTML code copied to the preview box. Click 'Render HTML in New Tab' to view it!", 'info', true);
+        }
+
+        /**
+         * Renders the HTML code from the preview textarea into a new browser tab.
+         */
+        function renderHtmlInNewTab() {
+            const html = htmlCodePreview.value;
+            // The second argument of window.open() reuses a tab with the specified name.
+            // The tab's title is set by the <title> tag in the HTML content itself.
+            const newWindow = window.open('', 'my-Canvas');
+            newWindow.document.write(html);
+            newWindow.document.close();
+            displayOutput("HTML rendered in a new tab!", 'info', true);
+        }
+
+        /**
+         * Copies the HTML code from the preview textarea to the clipboard.
+         */
+        function myCopyHtmlToClipboard() {
+            const myHtmlCode = htmlCodePreview.value;
+            if (myHtmlCode) {
+                const myTempTextArea = document.createElement('textarea');
+                myTempTextArea.value = myHtmlCode;
+                document.body.appendChild(myTempTextArea);
+                myTempTextArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(myTempTextArea);
+                displayOutput("HTML code has been copied to your clipboard!", 'info', true);
+            } else {
+                displayOutput("There is no HTML code to copy. Please click 'View HTML to Edit' first.", 'error', true);
+            }
+        }
+        
+        // --- End of New HTML Preview Functions ---
+
 
         /**
          * Function to copy the chrome://flags link to the clipboard and open a new tab.
@@ -466,6 +639,9 @@
             createProofreaderSessionBtn.disabled = true;
             executePromptBtn.disabled = true;
             disablePromptButtons();
+            viewHtmlBtn.disabled = true;
+            renderHtmlBtn.disabled = true;
+            myCopyHtmlBtn.disabled = true;
         }
 
         /**
@@ -480,6 +656,9 @@
             }
             executePromptBtn.disabled = false;
             enablePromptButtons();
+            viewHtmlBtn.disabled = false;
+            renderHtmlBtn.disabled = false;
+            myCopyHtmlBtn.disabled = false;
         }
 
         /**
@@ -520,7 +699,15 @@
             checkAvailability('proofreader');
             disablePromptButtons();
             executePromptBtn.disabled = true;
+            viewHtmlBtn.disabled = true;
+            renderHtmlBtn.disabled = true;
+            myCopyHtmlBtn.disabled = true;
         };
     </script>
+
+
+    Use at your own risk!
+    <br>
+    By Jeremy Ellis <a href="https://ca.linkedin.com/in/jeremy-ellis-4237a9bb"> LinkedIn </a>
 </body>
 </html>
