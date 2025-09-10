@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal JSON Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .myContainer {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        #myDropArea {
+            border: 2px dashed #007bff;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 1em;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        #myDropArea.myDragover {
+            background-color: #e6f7ff;
+            border-color: #0056b3;
+        }
+        #myImagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #myJSONOutput {
+            margin-top: 1em;
+            width: 98%;
+            min-height: 250px;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+            resize: vertical;
+        }
+        #myPromptInput {
+            width: 98%;
+            margin-top: 1em;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="myContainer">
+        <h1>Multimodal JSON Generator</h1>
+        <p>Drag an image here to generate the JSON payload for a multimodal prompt.</p>
+
+        <div id="myDropArea">
+            <p id="myDragText">Drag and drop an image file here</p>
+            <img id="myImagePreview" alt="Image preview">
+        </div>
+        
+        <label for="myPromptInput">Add a text prompt:</label>
+        <textarea id="myPromptInput" rows="3" placeholder="e.g., Describe this image.">Describe the image. What do you see?</textarea>
+
+        <h2>Generated JSON:</h2>
+        <textarea id="myJSONOutput" readonly></textarea>
+    </div>
+
+    <script>
+        const myDropArea = document.getElementById('myDropArea');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myDragText = document.getElementById('myDragText');
+        const myJSONOutput = document.getElementById('myJSONOutput');
+        const myPromptInput = document.getElementById('myPromptInput');
+
+        // Function to prevent default browser behavior
+        function myPreventDefaults(myEvent) {
+            myEvent.preventDefault();
+            myEvent.stopPropagation();
+        }
+
+        // Functions for drag-and-drop visual feedback
+        function myHighlight(myEvent) {
+            myDropArea.classList.add('myDragover');
+        }
+
+        function myUnhighlight(myEvent) {
+            myDropArea.classList.remove('myDragover');
+        }
+
+        // Function to handle the dropped file
+        function myHandleDrop(myEvent) {
+            const myDt = myEvent.dataTransfer;
+            const myFile = myDt.files[0];
+
+            if (myFile && myFile.type.startsWith('image/')) {
+                const myReader = new FileReader();
+                myReader.onload = function(myEvent) {
+                    const myBase64Image = myEvent.target.result;
+                    myImagePreview.src = myBase64Image;
+                    myImagePreview.style.display = 'block';
+                    myDragText.style.display = 'none';
+                    myGenerateJSON(myBase64Image);
+                };
+                myReader.readAsDataURL(myFile);
+            } else {
+                myJSONOutput.value = 'Please drop a valid image file!';
+            }
+            myUnhighlight(myEvent);
+        }
+
+        // Function to build and display the JSON
+        function myGenerateJSON(myBase64Image) {
+            const myPromptText = myPromptInput.value;
+            const myParts = [];
+
+            // Add text part if the prompt is not empty
+            if (myPromptText.trim() !== '') {
+                myParts.push({ text: myPromptText });
+            }
+
+            // Add image part
+            const myImageDataParts = myBase64Image.split(';base64,');
+            if (myImageDataParts.length === 2) {
+                myParts.push({
+                    inlineData: {
+                        mimeType: myImageDataParts[0].replace('data:', ''),
+                        data: myImageDataParts[1]
+                    }
+                });
+            }
+
+            const myPayload = {
+                contents: [{ parts: myParts }]
+            };
+
+            // Format JSON with 2-space indentation for readability
+            myJSONOutput.value = JSON.stringify(myPayload, null, 2);
+        }
+
+        // Update JSON when the prompt text changes
+        myPromptInput.addEventListener('input', () => {
+            if (myImagePreview.style.display !== 'none') {
+                myGenerateJSON(myImagePreview.src);
+            }
+        });
+
+        // Event listeners for drag-and-drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myPreventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myHighlight, false);
+        });
+        ['dragleave', 'drop'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myUnhighlight, false);
+        });
+        myDropArea.addEventListener('drop', myHandleDrop, false);
+    </script>
+</body>
+</html>
