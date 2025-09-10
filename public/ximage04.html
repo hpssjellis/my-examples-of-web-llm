@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Demo with Webcam and Image Upload</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .myContainer {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+        .myLoading {
+            color: blue;
+            font-style: italic;
+        }
+        .myError {
+            color: red;
+            font-weight: bold;
+        }
+        #myOutput {
+            margin-top: 1em;
+            border: 1px solid black;
+            padding: 0.5em;
+            min-height: 200px;
+            resize: vertical;
+            width: 98%;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 98%;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            padding: 0.5em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        #myTimerDisplay {
+            margin-top: 1em;
+            font-weight: bold;
+            color: #007bff;
+            min-height: 1.5em;
+        }
+        #myDropArea {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 1em;
+            cursor: pointer;
+        }
+        #myDropArea.myDragover {
+            border-color: #007bff;
+            background-color: #e6f7ff;
+        }
+        #myImagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #myDragText {
+            font-style: italic;
+            color: #888;
+        }
+        .myWebcamContainer {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #myWebcamVideo {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            background-color: #333;
+        }
+        #myWebcamCanvas {
+            display: none; /* Hide the canvas element */
+        }
+    </style>
+</head>
+<body>
+    <div class="myContainer">
+        <h1>Gemini API Demo</h1>
+        <p>
+            A starting point for a client-side LLM web application.
+            This version supports text, image, and webcam input.
+        </p>
+
+        <div>
+            <h3>Add Image (Drag & Drop):</h3>
+            <div id="myDropArea">
+                <p id="myDragText">Drag an image here or click to select a file.</p>
+                <img id="myImagePreview" alt="Image preview">
+            </div>
+
+            <h3>Or Add Image (Webcam):</h3>
+            <div class="myWebcamContainer">
+                <video id="myWebcamVideo" autoplay playsinline></video>
+                <button id="myStartWebcamButton">Start Webcam</button>
+                <button id="myCaptureImageButton" disabled>Capture Image</button>
+                <canvas id="myWebcamCanvas"></canvas>
+            </div>
+
+            <h3>Edit Prompt:</h3>
+            <textarea id="myPromptInput" rows="5" placeholder="Type your prompt here.">What is in the image?</textarea>
+            <button id="myExecutePromptButton">Execute Prompt</button>
+        </div>
+
+        <h2>Output:</h2>
+        <div id="myTimerDisplay"></div>
+        <textarea id="myOutput" rows="10" readonly>No output yet. Add an image or type a prompt, then click the button.</textarea>
+    </div>
+
+    <script>
+        const myApiKey = "";
+        let myStartTime = 0;
+        let myTimerInterval = null;
+        let myLastGeneratedText = '';
+        let myBase64Image = null;
+        let myWebcamStream = null;
+
+        const myPromptInput = document.getElementById('myPromptInput');
+        const myExecutePromptButton = document.getElementById('myExecutePromptButton');
+        const myOutput = document.getElementById('myOutput');
+        const myTimerDisplay = document.getElementById('myTimerDisplay');
+        const myDropArea = document.getElementById('myDropArea');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myDragText = document.getElementById('myDragText');
+        const myWebcamVideo = document.getElementById('myWebcamVideo');
+        const myStartWebcamButton = document.getElementById('myStartWebcamButton');
+        const myCaptureImageButton = document.getElementById('myCaptureImageButton');
+        const myWebcamCanvas = document.getElementById('myWebcamCanvas');
+        const myApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
+
+        // Function to display output in the text area.
+        function myDisplayOutput(myMessage, myType = 'info', myAppend = false) {
+            if (myAppend) {
+                myOutput.value += myMessage;
+            } else {
+                myOutput.value = myMessage;
+            }
+            myOutput.scrollTop = myOutput.scrollHeight;
+        }
+
+        // Function to update the timer display.
+        function myUpdateTimerDisplay() {
+            const myElapsed = (Date.now() - myStartTime) / 1000;
+            myTimerDisplay.textContent = `Thinking... ${myElapsed.toFixed(2)}s`;
+        }
+
+        // Function to execute the prompt and send to the API.
+        async function myExecutePrompt() {
+            const myPromptText = myPromptInput.value.trim();
+            if (!myPromptText && !myBase64Image) {
+                myDisplayOutput('Please enter a prompt or add an image!', 'myError');
+                return;
+            }
+
+            myStartTime = Date.now();
+            myLastGeneratedText = '';
+            myTimerDisplay.textContent = `Thinking... 0.00s`;
+            myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
+            myExecutePromptButton.disabled = true;
+            myOutput.value = "";
+            myOutput.classList.add("myLoading");
+
+            // Construct the multimodal payload
+            const myContents = [];
+            if (myBase64Image) {
+                const [myMimeType, myData] = myBase64Image.split(';base64,');
+                myContents.push({
+                    inlineData: {
+                        mimeType: myMimeType.replace('data:', ''),
+                        data: myData
+                    }
+                });
+            }
+            if (myPromptText) {
+                myContents.push({ text: myPromptText });
+            }
+            
+            const myPayload = { contents: [{ parts: myContents }] };
+
+            try {
+                const myResponse = await fetch(`${myApiUrl}?key=${myApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(myPayload)
+                });
+
+                if (!myResponse.ok) {
+                    const myErrorData = await myResponse.json();
+                    throw new Error(myErrorData.error.message || `API error: ${myResponse.status}`);
+                }
+
+                const myResult = await myResponse.json();
+                const myText = myResult?.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+                myLastGeneratedText = myText;
+                myDisplayOutput(myText);
+
+            } catch (myError) {
+                myDisplayOutput(`Error executing prompt: ${myError.message}`, 'myError');
+                console.error('Error executing prompt:', myError);
+                myLastGeneratedText = '';
+            } finally {
+                clearInterval(myTimerInterval);
+                const myEndTime = Date.now();
+                const myDurationSeconds = (myEndTime - myStartTime) / 1000;
+                const myCharCount = myLastGeneratedText.length;
+                const myWordCount = myLastGeneratedText.split(/\s+/).filter(word => word.length > 0).length;
+                const myCharsPerSecond = myDurationSeconds > 0 ? (myCharCount / myDurationSeconds).toFixed(2) : '0.00';
+                const myWordsPerSecond = myDurationSeconds > 0 ? (myWordCount / myDurationSeconds).toFixed(2) : '0.00';
+
+                myTimerDisplay.innerHTML =
+                    `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
+                    `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
+                    `Words: ${myWordCount} (${myWordsPerSecond}/s)`;
+
+                myExecutePromptButton.disabled = false;
+                myOutput.classList.remove("myLoading");
+            }
+        }
+
+        // --- Webcam Logic ---
+        async function myStartWebcam() {
+            myStartWebcamButton.disabled = true;
+            myCaptureImageButton.disabled = true;
+            try {
+                // Get access to the user's webcam.
+                const myStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                myWebcamVideo.srcObject = myStream;
+                myWebcamStream = myStream;
+                myWebcamVideo.style.display = 'block';
+                myCaptureImageButton.disabled = false;
+            } catch (myError) {
+                myDisplayOutput(`Error accessing webcam: ${myError.message}`, 'myError');
+                console.error('Error accessing webcam:', myError);
+                myStartWebcamButton.disabled = false;
+            }
+        }
+
+        function myCaptureImageFromWebcam() {
+            // Set the canvas dimensions to match the video
+            myWebcamCanvas.width = myWebcamVideo.videoWidth;
+            myWebcamCanvas.height = myWebcamVideo.videoHeight;
+            const myContext = myWebcamCanvas.getContext('2d');
+            // Draw the video frame to the canvas
+            myContext.drawImage(myWebcamVideo, 0, 0, myWebcamCanvas.width, myWebcamCanvas.height);
+            // Convert canvas content to Base64 image
+            myBase64Image = myWebcamCanvas.toDataURL('image/jpeg');
+
+            // Display the captured image in the preview area
+            myImagePreview.src = myBase64Image;
+            myImagePreview.style.display = 'block';
+            myDragText.style.display = 'none';
+        }
+
+        // --- Drag and Drop Logic ---
+        function myPreventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function myHighlight(e) {
+            myDropArea.classList.add('myDragover');
+        }
+
+        function myUnhighlight(e) {
+            myDropArea.classList.remove('myDragover');
+        }
+
+        function myHandleDrop(e) {
+            const myDt = e.dataTransfer;
+            const myFile = myDt.files[0];
+
+            if (myFile && myFile.type.startsWith('image/')) {
+                const myReader = new FileReader();
+                myReader.onload = function(myEvent) {
+                    myBase64Image = myEvent.target.result;
+                    myImagePreview.src = myBase64Image;
+                    myImagePreview.style.display = 'block';
+                    myDragText.style.display = 'none';
+                };
+                myReader.readAsDataURL(myFile);
+            } else {
+                myDisplayOutput('Please drop a valid image file!', 'myError');
+                myBase64Image = null;
+                myImagePreview.style.display = 'none';
+                myDragText.style.display = 'block';
+            }
+            myUnhighlight(e);
+        }
+
+        // --- Event Listeners ---
+        myExecutePromptButton.onclick = myExecutePrompt;
+        myStartWebcamButton.onclick = myStartWebcam;
+        myCaptureImageButton.onclick = myCaptureImageFromWebcam;
+        
+        // Drag and drop event listeners
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myPreventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myHighlight, false);
+        });
+        ['dragleave', 'drop'].forEach(myEventName => {
+            myDropArea.addEventListener(myEventName, myUnhighlight, false);
+        });
+        myDropArea.addEventListener('drop', myHandleDrop, false);
+
+        // Allow clicking on the drop area to select a file
+        myDropArea.onclick = () => {
+            const myInput = document.createElement('input');
+            myInput.type = 'file';
+            myInput.accept = 'image/*';
+            myInput.onchange = (myEvent) => {
+                const myFile = myEvent.target.files[0];
+                if (myFile) {
+                    const myReader = new FileReader();
+                    myReader.onload = (myEvent) => {
+                        myBase64Image = myEvent.target.result;
+                        myImagePreview.src = myBase64Image;
+                        myImagePreview.style.display = 'block';
+                        myDragText.style.display = 'none';
+                    };
+                    myReader.readAsDataURL(myFile);
+                }
+            };
+            myInput.click();
+        };
+
+        // Stop webcam when the page is unloaded to release the camera.
+        window.addEventListener('beforeunload', () => {
+            if (myWebcamStream) {
+                myWebcamStream.getTracks().forEach(myTrack => myTrack.stop());
+            }
+        });
+    </script>
+</body>
+</html>
