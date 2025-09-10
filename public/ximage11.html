@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Nano Multimodal</title>
+</head>
+<body>
+
+    <h1>Gemini Nano Multimodal API</h1>
+
+    <div>
+        <button id="myCheckAvailabilityButton">Check LLM API Availability</button>
+        <button id="myCreateSessionButton">Create LLM Session</button>
+        <button id="myMultimodalPromptButton">Prepare Multimodal Prompt</button>
+    </div>
+
+    ---
+
+    <h3>Edit Prompt:</h3>
+    <textarea id="myPromptInput" rows="5" cols="80" placeholder="Type your prompt here..."></textarea>
+    <input type="file" id="myImageInput" accept="image/*" multiple>
+    <div>
+        <button id="myExecutePromptButton">Execute Prompt</button>
+    </div>
+
+    ---
+
+    <h2>Output:</h2>
+    <textarea id="myOutput" rows="10" readonly>No output yet. Click a button to begin.</textarea>
+
+    <script>
+        const myCheckAvailabilityButton = document.getElementById('myCheckAvailabilityButton');
+        const myCreateSessionButton = document.getElementById('myCreateSessionButton');
+        const myMultimodalPromptButton = document.getElementById('myMultimodalPromptButton');
+        const myExecutePromptButton = document.getElementById('myExecutePromptButton');
+        const myPromptInput = document.getElementById('myPromptInput');
+        const myImageInput = document.getElementById('myImageInput');
+        const myOutput = document.getElementById('myOutput');
+
+        let myLanguageModelSession = null;
+
+        // Display a message to the user
+        function myDisplayMessage(message) {
+            myOutput.value += message + '\n';
+            myOutput.scrollTop = myOutput.scrollHeight;
+        }
+
+        // Check if the LanguageModel API is available
+        async function myCheckAvailability() {
+            myOutput.value = '';
+            myDisplayMessage('Checking API availability...');
+            if (typeof LanguageModel === 'undefined') {
+                myDisplayMessage('LanguageModel API is not available.', 'error');
+                return;
+            }
+            const myAvailability = await LanguageModel.availability();
+            myDisplayMessage('LLM API Availability: ' + myAvailability);
+            if (myAvailability === 'downloadable' || myAvailability === 'available') {
+                myCreateSessionButton.disabled = false;
+            }
+        }
+
+        // Create a new LanguageModel session
+        async function myCreateSession() {
+            myOutput.value = '';
+            myDisplayMessage('Creating LLM session...');
+            myCreateSessionButton.disabled = true;
+
+            try {
+                if (typeof LanguageModel === 'undefined') {
+                    myDisplayMessage('LanguageModel API is not available.', 'error');
+                    myCreateSessionButton.disabled = false;
+                    return;
+                }
+                myLanguageModelSession = await LanguageModel.create({
+                    monitor(m) {
+                        m.addEventListener("downloadprogress", (e) => {
+                            myDisplayMessage('Downloading LLM: ' + ((e.loaded / e.total) * 100).toFixed(2) + '%');
+                        });
+                    }
+                });
+                myDisplayMessage('LanguageModel session created successfully!');
+                myMultimodalPromptButton.disabled = false;
+            } catch (error) {
+                myDisplayMessage('Error creating session: ' + error.message);
+                myCreateSessionButton.disabled = false;
+            }
+        }
+
+        // Prepare the prompt for multimodal use
+        function myPrepareMultimodalPrompt() {
+            myPromptInput.value = 'Describe the image(s) and then tell me a fun fact about what you see.';
+            myExecutePromptButton.disabled = false;
+            myDisplayMessage('Prompt prepared for multimodal input. Select an image and click "Execute Prompt".');
+        }
+
+        // Execute the prompt with text and images
+        async function myExecutePrompt() {
+            myOutput.value = '';
+            myDisplayMessage('Executing prompt...');
+            myExecutePromptButton.disabled = true;
+
+            if (!myLanguageModelSession) {
+                myDisplayMessage('Please create a session first.');
+                myExecutePromptButton.disabled = false;
+                return;
+            }
+
+            const myPromptText = myPromptInput.value;
+            if (!myPromptText.trim()) {
+                myDisplayMessage('Prompt text cannot be empty.');
+                myExecutePromptButton.disabled = false;
+                return;
+            }
+            
+            // Construct the parts array for the multimodal input
+            const myParts = [{ text: myPromptText }];
+            
+            const myImages = myImageInput.files;
+            for (const file of myImages) {
+                const myBlob = await file.arrayBuffer();
+                myParts.push({
+                    blob: new Blob([myBlob], { type: file.type })
+                });
+            }
+
+            try {
+                // The fix: wrap the 'parts' array in a LanguageModelMessage object.
+                const myResult = await myLanguageModelSession.prompt({ parts: myParts });
+                myDisplayMessage(myResult);
+            } catch (error) {
+                myDisplayMessage('Error executing prompt: ' + error.message);
+            } finally {
+                myExecutePromptButton.disabled = false;
+            }
+        }
+
+        // Link static buttons to functions
+        myCheckAvailabilityButton.onclick = myCheckAvailability;
+        myCreateSessionButton.onclick = myCreateSession;
+        myMultimodalPromptButton.onclick = myPrepareMultimodalPrompt;
+        myExecutePromptButton.onclick = myExecutePrompt;
+
+        // Initial state
+        myCreateSessionButton.disabled = true;
+        myMultimodalPromptButton.disabled = true;
+        myExecutePromptButton.disabled = true;
+    </script>
+</body>
+</html>
