@@ -20,6 +20,7 @@ Write an interesting single file webpage that uses some simple javascript </text
     let myTimerInterval = null;
     let myLastGeneratedText = '';
     let myStopRequested = false;
+    let myIsProcessing = false;
 
     function myUpdateTimerDisplay() {
       const myElapsed = (Date.now() - myStartTime) / 1000;
@@ -38,8 +39,10 @@ Write an interesting single file webpage that uses some simple javascript </text
     }
 
     async function myLoadModel() {
+      if (myIsProcessing) return;
       myDiv01.textContent = 'Loading model...';
       try {
+        myIsProcessing = true;
         if (typeof LanguageModel === 'undefined') {
           myDiv01.textContent = 'Error: LanguageModel API is not available. Please enable the required flags.';
           return;
@@ -49,10 +52,14 @@ Write an interesting single file webpage that uses some simple javascript </text
         myLoadButton.disabled = true; // Disable the button after successful load
       } catch (myError) {
         myDiv01.textContent = `Error loading model: ${myError.message}`;
+      } finally {
+        myIsProcessing = false;
       }
     }
 
     async function myToggleStream() {
+      if (myIsProcessing) return;
+
       // If the button text is "Stop", the user wants to stop the process
       if (myStreamButton.textContent === 'Stop') {
         myStopRequested = true;
@@ -87,6 +94,7 @@ Write an interesting single file webpage that uses some simple javascript </text
       myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
 
       try {
+        myIsProcessing = true;
         const myStream = await mySession.promptStreaming(myPrompt);
         for await (const myChunk of myStream) {
           if (myStopRequested) {
@@ -119,6 +127,7 @@ Write an interesting single file webpage that uses some simple javascript </text
         myStreamButton.textContent = 'myStreamModel';
         myStopRequested = false;
         myStreamButton.disabled = false;
+        myIsProcessing = false;
       }
     }
   </script>
