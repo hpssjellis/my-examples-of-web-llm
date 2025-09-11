@@ -1,0 +1,136 @@
+<body >
+  <div >
+    <h1 align=center>Client-side-Chrome GeminiNano API</h1>
+    Do Not load on a mobile device,<br>
+    For desktop/laptop only. Needs 4GB download and 22GB free space.<br>
+    <button id="myLoadButton" onclick="myLoadModel()">myLoadModel</button>
+    <button id="myStreamButton" onclick="myToggleStream()">myStreamModel</button><br>
+    <textarea id="myInputPrompt" rows="4" cols="70" placeholder="Type your prompt here...">
+Write an interesting single file webpage that uses some simple javascript </textarea><br>
+    <div id="myDiv01">...</div>
+    <textarea id="myOutput" rows="10" cols="70" readonly></textarea>
+  </div>
+
+  <script>
+    let mySession = null;
+    const myInputPrompt = document.getElementById('myInputPrompt');
+    const myOutput = document.getElementById('myOutput');
+    const myDiv01 = document.getElementById('myDiv01');
+    const myStreamButton = document.getElementById('myStreamButton');
+    const myLoadButton = document.getElementById('myLoadButton');
+
+    let myStartTime = 0;
+    let myTimerInterval = null;
+    let myLastGeneratedText = '';
+    let myController = null; // New AbortController
+
+    let myIsProcessing = false;
+
+    function myUpdateTimerDisplay() {
+      const myElapsed = (Date.now() - myStartTime) / 1000;
+      myDiv01.textContent = `Thinking... ${myElapsed.toFixed(2)}s`;
+    }
+    
+    // Function to fully reset all state variables for a new stream
+    function myResetStreamState() {
+      myLastGeneratedText = '';
+      myOutput.value = '';
+      if (myTimerInterval) {
+        clearInterval(myTimerInterval);
+        myTimerInterval = null;
+      }
+      myController = null;
+    }
+
+    async function myLoadModel() {
+      if (myIsProcessing) return;
+      myDiv01.textContent = 'Loading model...';
+      try {
+        myIsProcessing = true;
+        if (typeof LanguageModel === 'undefined') {
+          myDiv01.textContent = 'Error: LanguageModel API is not available. Please enable the required flags.';
+          return;
+        }
+        mySession = await LanguageModel.create();
+        myDiv01.textContent = 'Model loaded successfully. Ready to stream.';
+        myLoadButton.disabled = true; // Disable the button after successful load
+      } catch (myError) {
+        myDiv01.textContent = `Error loading model: ${myError.message}`;
+      } finally {
+        myIsProcessing = false;
+      }
+    }
+
+    async function myToggleStream() {
+      // If the button text is "Stop", the user wants to stop the process
+      if (myStreamButton.textContent === 'Stop' && myController) {
+        myController.abort();
+        return;
+      }
+      
+      if (myIsProcessing) return;
+
+      // Reset state for a new stream
+      myResetStreamState();
+      
+      // Otherwise, the user wants to start the process
+      const myPrompt = myInputPrompt.value.trim();
+      if (!mySession) {
+        myOutput.value = 'Please load the model first.';
+        myDiv01.textContent = '...';
+        return;
+      }
+      if (!myPrompt) {
+        myOutput.value = 'Please enter a prompt.';
+        myDiv01.textContent = '...';
+        return;
+      }
+      
+      myStreamButton.textContent = 'Stop';
+      myStartTime = Date.now();
+      myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
+      myController = new AbortController();
+
+      try {
+        myIsProcessing = true;
+        const myStream = await mySession.promptStreaming(myPrompt, { signal: myController.signal });
+        for await (const myChunk of myStream) {
+          myLastGeneratedText += myChunk;
+          myOutput.value = myLastGeneratedText;
+          myOutput.scrollTop = myOutput.scrollHeight;
+        }
+      } catch (myError) {
+        if (myError.name === 'AbortError') {
+          myDiv01.textContent = 'Streaming stopped by user.';
+        } else {
+          myOutput.value = `Error streaming prompt: ${myError.message}`;
+        }
+      } finally {
+        clearInterval(myTimerInterval);
+        const myEndTime = Date.now();
+        const myDurationSeconds = (myEndTime - myStartTime) / 1000;
+        const myCharCount = myLastGeneratedText.length;
+        const myWordCount = myLastGeneratedText.split(/\s+/).filter(myWord => myWord.length > 0).length;
+        const myCharsPerSecond = myDurationSeconds > 0 ? (myCharCount / myDurationSeconds).toFixed(2) : '0.00';
+        const myWordsPerSecond = myDurationSeconds > 0 ? (myWordCount / myDurationSeconds).toFixed(2) : '0.00';
+        
+        // This check is no longer needed with AbortController
+        // if (myStopRequested) {
+        //   myDiv01.textContent = 'Streaming stopped by user.';
+        // } else {
+          myDiv01.innerHTML =
+            `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
+            `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
+            `Words: ${myWordCount} (${myWordsPerSecond}/s)`;
+        // }
+
+        myStreamButton.textContent = 'myStreamModel';
+        myStreamButton.disabled = false;
+        myIsProcessing = false;
+        myController = null;
+      }
+    }
+  </script>
+  <h5>Use at your own risk,<br>
+   By Jeremy Ellis <a href="https://www.linkedin.com/in/jeremy-ellis-4237a9bb/">LinkedIn</a><br>
+</body>
