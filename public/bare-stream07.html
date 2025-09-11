@@ -1,6 +1,6 @@
 <body >
   <div >
-    <button onclick="myLoadModel()">myLoadModel</button>
+    <button id="myLoadButton" onclick="myLoadModel()">myLoadModel</button>
     <button id="myStreamButton" onclick="myToggleStream()">myStreamModel</button><br>
     <textarea id="myInputPrompt" rows="4" cols="70" placeholder="Type your prompt here...">
 Write an interesting single file webpage that uses some simple javascript </textarea><br>
@@ -14,6 +14,7 @@ Write an interesting single file webpage that uses some simple javascript </text
     const myOutput = document.getElementById('myOutput');
     const myDiv01 = document.getElementById('myDiv01');
     const myStreamButton = document.getElementById('myStreamButton');
+    const myLoadButton = document.getElementById('myLoadButton');
 
     let myStartTime = 0;
     let myTimerInterval = null;
@@ -34,20 +35,23 @@ Write an interesting single file webpage that uses some simple javascript </text
         }
         mySession = await LanguageModel.create();
         myDiv01.textContent = 'Model loaded successfully. Ready to stream.';
+        myLoadButton.disabled = true; // Disable the button after successful load
       } catch (myError) {
         myDiv01.textContent = `Error loading model: ${myError.message}`;
       }
     }
 
     async function myToggleStream() {
-      // If the button is disabled, ignore the click to prevent issues
-      if (myStreamButton.disabled) {
-        return;
-      }
-
       // If the button text is "Stop", the user wants to stop the process
       if (myStreamButton.textContent === 'Stop') {
         myStopRequested = true;
+        myStreamButton.textContent = 'Stopping...';
+        myStreamButton.disabled = true;
+        return;
+      }
+
+      // If the button is disabled, ignore the click to prevent issues
+      if (myStreamButton.disabled) {
         return;
       }
 
@@ -64,9 +68,6 @@ Write an interesting single file webpage that uses some simple javascript </text
         return;
       }
       
-      // Disable the button to prevent multiple clicks while streaming
-      myStreamButton.disabled = true;
-
       myStopRequested = false;
       myOutput.value = '';
       myLastGeneratedText = '';
