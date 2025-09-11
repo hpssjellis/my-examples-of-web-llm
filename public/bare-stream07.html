@@ -40,12 +40,18 @@ Write an interesting single file webpage that uses some simple javascript </text
     }
 
     async function myToggleStream() {
-      if (myStreamButton.textContent === 'Stop') {
-        myStopRequested = true;
-        myStreamButton.textContent = 'Stopping...';
+      // If the button is disabled, ignore the click to prevent issues
+      if (myStreamButton.disabled) {
         return;
       }
 
+      // If the button text is "Stop", the user wants to stop the process
+      if (myStreamButton.textContent === 'Stop') {
+        myStopRequested = true;
+        return;
+      }
+
+      // Otherwise, the user wants to start the process
       const myPrompt = myInputPrompt.value.trim();
       if (!mySession) {
         myOutput.value = 'Please load the model first.';
@@ -57,6 +63,9 @@ Write an interesting single file webpage that uses some simple javascript </text
         myDiv01.textContent = '...';
         return;
       }
+      
+      // Disable the button to prevent multiple clicks while streaming
+      myStreamButton.disabled = true;
 
       myStopRequested = false;
       myOutput.value = '';
@@ -97,6 +106,7 @@ Write an interesting single file webpage that uses some simple javascript </text
 
         myStreamButton.textContent = 'myStreamModel';
         myStopRequested = false;
+        myStreamButton.disabled = false;
       }
     }
   </script>
