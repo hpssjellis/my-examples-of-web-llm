@@ -1,0 +1,95 @@
+<body >
+  <div >
+    <button onclick="myLoadModel()">myLoadModel</button>
+    <button id="myStreamButton" onclick="myToggleStream()">myStreamModel</button><br>
+    <textarea id="myInputPrompt" rows="4" cols="70" placeholder="Type your prompt here...">
+Write an interesting single file webpage that uses some simple javascript </textarea><br>
+    <div id="myDiv01">...</div>
+    <textarea id="myOutput" rows="10" cols="70" readonly></textarea>
+  </div>
+
+  <script>
+    let mySession = null;
+    const myInputPrompt = document.getElementById('myInputPrompt');
+    const myOutput = document.getElementById('myOutput');
+    const myDiv01 = document.getElementById('myDiv01');
+    const myStreamButton = document.getElementById('myStreamButton');
+
+    let myStartTime = 0;
+    let myTimerInterval = null;
+    let myLastGeneratedText = '';
+    let myStopRequested = false;
+
+    function myUpdateTimerDisplay() {
+      const myElapsed = (Date.now() - myStartTime) / 1000;
+      myDiv01.textContent = `Thinking... ${myElapsed.toFixed(2)}s`;
+    }
+
+    async function myLoadModel() {
+      myDiv01.textContent = 'Loading model...';
+      try {
+        if (typeof LanguageModel === 'undefined') {
+          myDiv01.textContent = 'Error: LanguageModel API is not available. Please enable the required flags.';
+          return;
+        }
+        mySession = await LanguageModel.create();
+        myDiv01.textContent = 'Model loaded successfully. Ready to stream.';
+      } catch (myError) {
+        myDiv01.textContent = `Error loading model: ${myError.message}`;
+      }
+    }
+
+    async function myToggleStream() {
+      if (myStreamButton.textContent === 'Stop') {
+        myStopRequested = true;
+        myStreamButton.textContent = 'myStreamModel';
+        return;
+      }
+
+      const myPrompt = myInputPrompt.value.trim();
+      if (!mySession) {
+        myOutput.value = 'Please load the model first.';
+        return;
+      }
+      if (!myPrompt) {
+        myOutput.value = 'Please enter a prompt.';
+        return;
+      }
+
+      myStopRequested = false;
+      myOutput.value = '';
+      myLastGeneratedText = '';
+      myStartTime = Date.now();
+      myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
+      myStreamButton.textContent = 'Stop';
+
+      try {
+        const myStream = await mySession.promptStreaming(myPrompt);
+        for await (const myChunk of myStream) {
+          if (myStopRequested) {
+            break;
+          }
+          myLastGeneratedText += myChunk;
+          myOutput.value = myLastGeneratedText;
+          myOutput.scrollTop = myOutput.scrollHeight;
+        }
+      } catch (myError) {
+        myOutput.value = `Error streaming prompt: ${myError.message}`;
+      } finally {
+        clearInterval(myTimerInterval);
+        const myEndTime = Date.now();
+        const myDurationSeconds = (myEndTime - myStartTime) / 1000;
+        const myCharCount = myLastGeneratedText.length;
+        const myWordCount = myLastGeneratedText.split(/\s+/).filter(myWord => myWord.length > 0).length;
+        const myCharsPerSecond = myDurationSeconds > 0 ? (myCharCount / myDurationSeconds).toFixed(2) : '0.00';
+        const myWordsPerSecond = myDurationSeconds > 0 ? (myWordCount / myDurationSeconds).toFixed(2) : '0.00';
+        myDiv01.innerHTML =
+          `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
+          `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
+          `Words: ${myWordCount} (${myWordsPerSecond}/s)`;
+        myStreamButton.textContent = 'myStreamModel';
+        myStopRequested = false;
+      }
+    }
+  </script>
+</body>
