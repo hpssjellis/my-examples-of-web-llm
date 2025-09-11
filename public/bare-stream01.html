@@ -1,0 +1,52 @@
+<body style="padding: 20px;">
+  <div style="display: flex; flex-direction: column; gap: 10px; max-width: 600px; margin: 0 auto;">
+    <button onclick="myLoadModel()">myLoadModel</button>
+    <button onclick="myStreamModel()">myStreamModel</button>
+    <textarea id="myInputPrompt" rows="4" placeholder="Type your prompt here..."></textarea>
+    <textarea id="myOutput" rows="10" readonly></textarea>
+  </div>
+
+  <script>
+    let mySession = null;
+    const myInputPrompt = document.getElementById('myInputPrompt');
+    const myOutput = document.getElementById('myOutput');
+
+    async function myLoadModel() {
+      myOutput.value = 'Loading model...';
+      try {
+        if (typeof LanguageModel === 'undefined') {
+          myOutput.value = 'Error: LanguageModel API is not available. Please enable the required flags.';
+          return;
+        }
+        mySession = await LanguageModel.create();
+        myOutput.value = 'Model loaded successfully. Ready to stream.';
+      } catch (myError) {
+        myOutput.value = `Error loading model: ${myError.message}`;
+      }
+    }
+
+    async function myStreamModel() {
+      const myPrompt = myInputPrompt.value.trim();
+      if (!mySession) {
+        myOutput.value = 'Please load the model first.';
+        return;
+      }
+      if (!myPrompt) {
+        myOutput.value = 'Please enter a prompt.';
+        return;
+      }
+
+      myOutput.value = '';
+      try {
+        const myStream = await mySession.promptStreaming(myPrompt);
+        for await (const myChunk of myStream) {
+          myOutput.value += myChunk;
+          myOutput.scrollTop = myOutput.scrollHeight;
+        }
+        myOutput.value += '\n\n--- Done ---';
+      } catch (myError) {
+        myOutput.value = `Error streaming prompt: ${myError.message}`;
+      }
+    }
+  </script>
+</body>
