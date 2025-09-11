@@ -42,8 +42,7 @@ Write an interesting single file webpage that uses some simple javascript </text
     async function myToggleStream() {
       if (myStreamButton.textContent === 'Stop') {
         myStopRequested = true;
-        clearInterval(myTimerInterval);
-        myStreamButton.textContent = 'myStreamModel';
+        myStreamButton.textContent = 'Stopping...';
         return;
       }
 
@@ -62,9 +61,9 @@ Write an interesting single file webpage that uses some simple javascript </text
       myStopRequested = false;
       myOutput.value = '';
       myLastGeneratedText = '';
+      myStreamButton.textContent = 'Stop';
       myStartTime = Date.now();
       myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
-      myStreamButton.textContent = 'Stop';
 
       try {
         const myStream = await mySession.promptStreaming(myPrompt);
@@ -86,10 +85,16 @@ Write an interesting single file webpage that uses some simple javascript </text
         const myWordCount = myLastGeneratedText.split(/\s+/).filter(myWord => myWord.length > 0).length;
         const myCharsPerSecond = myDurationSeconds > 0 ? (myCharCount / myDurationSeconds).toFixed(2) : '0.00';
         const myWordsPerSecond = myDurationSeconds > 0 ? (myWordCount / myDurationSeconds).toFixed(2) : '0.00';
-        myDiv01.innerHTML =
-          `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
-          `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
-          `Words: ${myWordCount} (${myWordsPerSecond}/s)`;
+
+        if (myStopRequested) {
+          myDiv01.textContent = 'Streaming stopped by user.';
+        } else {
+          myDiv01.innerHTML =
+            `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
+            `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
+            `Words: ${myWordCount} (${myWordsPerSecond}/s)`;
+        }
+
         myStreamButton.textContent = 'myStreamModel';
         myStopRequested = false;
       }
