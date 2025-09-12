@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description with Chrome Built-in API</title>
+</head>
+<body>
+    <h1>Chrome Built-In API Image Description</h1>
+    <p>Select an image to describe it using the Language Model API.</p>
+    <input type="file" id="myImageInput" accept="image/*" />
+    <button onclick="myStartDescription()">Describe Image</button>
+    <div id="myStatus">Status here</div>
+    <h2>Description:</h2>
+    <p id="myOutputText"></p>
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
+    <script type="module">
+        const myImageInput = document.getElementById('myImageInput');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myOutputText = document.getElementById('myOutputText');
+        const myStatus = document.getElementById('myStatus');
+        let myImageBlob = null;
+        let myTimerId = null;
+        let myAnalysisTimerId = null;
+        myImageInput.onchange = async (event) => {
+            const myFile = event.target.files[0];
+            if (myFile) {
+                myImageBlob = myFile;
+                myImagePreview.src = URL.createObjectURL(myFile);
+                myImagePreview.style.display = 'block';
+                myOutputText.textContent = 'Ready to describe...';
+                myStatus.textContent = '';
+            }
+        };
+        window.myStartDescription = async () => {
+            if (!myImageBlob) {
+                myOutputText.textContent = 'Please select an image first.';
+                return;
+            }
+            let mySeconds = 0;
+            myOutputText.textContent = 'Model is being downloaded...';
+            myTimerId = setInterval(() => {
+                mySeconds++;
+                myOutputText.textContent = `Model is being downloaded... ${mySeconds} seconds`;
+            }, 1000);
+            try {
+                const mySession = await LanguageModel.create({
+                    expectedInputs: [{ type: 'image' }],
+                });
+                clearInterval(myTimerId);
+                myOutputText.textContent = '';
+                let myAnalysisSeconds = 0;
+                myAnalysisTimerId = setInterval(() => {
+                    myAnalysisSeconds++;
+                    myStatus.textContent = `Analyzing... ${myAnalysisSeconds} seconds`;
+                }, 1000);
+                const myStream = mySession.promptStreaming([
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                value: myImageBlob,
+                            },
+                            {
+                                type: 'text',
+                                value: 'Describe this image as completely as you can',
+                            },
+                        ],
+                    },
+                ]);
+                for await (const myChunk of myStream) {
+                    myOutputText.append(myChunk);
+                }
+                clearInterval(myAnalysisTimerId);
+                myStatus.textContent = 'Analysis complete.';
+            } catch (error) {
+                clearInterval(myTimerId);
+                clearInterval(myAnalysisTimerId);
+                console.error("Error with LanguageModel API:", error);
+                myOutputText.textContent = 'An error occurred. Please check the console for details.';
+                myStatus.textContent = '';
+            }
+        };
+    </script>
+</body>
+</html>
