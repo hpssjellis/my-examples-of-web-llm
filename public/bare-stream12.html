@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description with Chrome Built-in API</title>
+</head>
+<body>
+    <h1>Image Description</h1>
+    <p>Select an image to describe it using the Language Model API.</p>
+    
+    <!-- Input for the user to select an image -->
+    <input type="file" id="myImageInput" accept="image/*" />
+    
+    <!-- This will display a preview of the selected image -->
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
+    
+    <!-- Button to trigger the API call -->
+    <button onclick="myStartDescription()">Describe Image</button>
+
+    <!-- Area to display the output from the API -->
+    <h2>Description:</h2>
+    <p id="myOutputText"></p>
+
+    <script type="module">
+        // Get references to our HTML elements
+        const myImageInput = document.getElementById('myImageInput');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myOutputText = document.getElementById('myOutputText');
+
+        let myImageBlob = null; // Variable to hold the image data as a Blob
+
+        // This function runs when the user selects a new image
+        myImageInput.onchange = async (event) => {
+            const myFile = event.target.files[0];
+            if (myFile) {
+                // Store the selected file as a Blob
+                myImageBlob = myFile;
+                // Create a temporary URL for the image and display it
+                myImagePreview.src = URL.createObjectURL(myFile);
+                myImagePreview.style.display = 'block';
+                // Reset the output text
+                myOutputText.textContent = 'Ready to describe...';
+            }
+        };
+
+        // This function will be called when the "Describe Image" button is clicked
+        window.myStartDescription = async () => {
+            // Check if an image has been selected
+            if (!myImageBlob) {
+                myOutputText.textContent = 'Please select an image first.';
+                return;
+            }
+
+            try {
+                // Initialize the Language Model session with an image input
+                const mySession = await LanguageModel.create({
+                    expectedInputs: [{ type: 'image' }],
+                });
+
+                myOutputText.textContent = 'Thinking...';
+
+                // Stream the response from the language model
+                const myStream = mySession.promptStreaming([
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                value: myImageBlob, // Pass the Blob directly here!
+                            },
+                            {
+                                type: 'text',
+                                value: 'Describe this image in a few words.',
+                            },
+                        ],
+                    },
+                ]);
+
+                // Clear the output before starting the new stream
+                myOutputText.textContent = '';
+
+                // Loop through the streamed chunks and append them to the output element
+                for await (const myChunk of myStream) {
+                    myOutputText.append(myChunk);
+                }
+
+            } catch (error) {
+                console.error("Error with LanguageModel API:", error);
+                myOutputText.textContent = 'An error occurred. Please check the console for details.';
+            }
+        };
+    </script>
+</body>
+</html>
