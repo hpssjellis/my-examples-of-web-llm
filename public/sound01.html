@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Description with Chrome Built-in AI</title>
+</head>
+<body>
+<h1>Chrome Built-In AI Audio Description</h1>
+<p>Record audio or select a file, then describe it using the Language Model API.</p>
+
+<input type="file" id="myAudioInput" accept="audio/*">
+<input type="button" value="Start Recording" onclick="myStartRecording()">
+<input type="button" value="Stop Recording" onclick="myStopRecording()" style="display:none">
+<input type="button" value="Describe Audio" onclick="myDescribeAudio()" disabled>
+<div id="myStatus">Status here</div>
+<h2>Description:</h2>
+<p id="myOutputText"></p>
+<audio id="myAudioPreview" controls style="display:none"></audio>
+
+<script type="module">
+const myAudioInput = document.getElementById('myAudioInput')
+const myAudioPreview = document.getElementById('myAudioPreview')
+const myOutputText = document.getElementById('myOutputText')
+const myStatus = document.getElementById('myStatus')
+const myStartRecordingButton = document.querySelector('input[value="Start Recording"]')
+const myStopRecordingButton = document.querySelector('input[value="Stop Recording"]')
+const myDescribeButton = document.querySelector('input[value="Describe Audio"]')
+let myAudioBlob = null
+let myRecorder = null
+let myTimerId = null
+let myAnalysisTimerId = null
+let myTimeoutId = null
+let myAbortController = null
+
+myAudioInput.onchange = e => {
+    const file = e.target.files[0]
+    if(file){
+        myAudioBlob = file
+        myAudioPreview.src = URL.createObjectURL(file)
+        myAudioPreview.style.display='block'
+        myStatus.textContent='Ready to describe...'
+        myDescribeButton.disabled=false
+    }
+}
+
+window.myStartRecording = async () => {
+    try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true })
+        myRecorder = new MediaRecorder(stream)
+        const chunks=[]
+        myRecorder.ondataavailable = e => chunks.push(e.data)
+        myRecorder.onstop = () => {
+            myAudioBlob = new Blob(chunks,{type:'audio/wav'})
+            myAudioPreview.src = URL.createObjectURL(myAudioBlob)
+            myAudioPreview.style.display='block'
+            myStatus.textContent='Recording stopped. Ready to describe...'
+            myDescribeButton.disabled=false
+        }
+        myRecorder.start()
+        myStartRecordingButton.style.display='none'
+        myStopRecordingButton.style.display='inline'
+        myStatus.textContent='Recording...'
+    }catch(e){
+        myStatus.textContent='Error accessing microphone: '+e.message
+        console.error(e)
+    }
+}
+
+window.myStopRecording = () => {
+    if(myRecorder && myRecorder.state!=='inactive'){
+        myRecorder.stop()
+        myStatus.textContent='Stopping recording...'
+        myStartRecordingButton.style.display='inline'
+        myStopRecordingButton.style.display='none'
+    }
+}
+
+window.myDescribeAudio = async () => {
+    if(!myAudioBlob){
+        myOutputText.textContent='Please select or record audio first.'
+        return
+    }
+    myDescribeButton.disabled=true
+    myAbortController=new AbortController()
+    let downloadSeconds=0
+    myOutputText.textContent='Model is being downloaded...'
+    myStatus.textContent='Downloading model... 0s'
+    myTimerId=setInterval(()=>{downloadSeconds++; myStatus.textContent=`Downloading model: ${downloadSeconds}s`},1000)
+    myTimeoutId=setTimeout(()=>{myAbortController.abort()},60000)
+
+    try{
+        let mySession
+        try{
+            mySession = await LanguageModel.create({expectedInputs:[{type:'audio'}]})
+            console.log('Session ready', mySession)
+        }catch(e){
+            console.error('Error creating session',e)
+            myStatus.textContent='Model capability not available.'
+            clearInterval(myTimerId)
+            clearTimeout(myTimeoutId)
+            return
+        }
+
+        clearInterval(myTimerId)
+        myStatus.textContent='Model downloaded. Analyzing audio...'
+        myOutputText.textContent=''
+
+        let analysisSeconds=0
+        myAnalysisTimerId=setInterval(()=>{analysisSeconds++; myStatus.textContent=`Analyzing audio: ${analysisSeconds}s`},1000)
+
+        try{
+            const myStream = mySession.promptStreaming([
+                { role:'user', content:[
+                    {type:'audio', value:myAudioBlob},
+                    {type:'text', value:'Describe this audio as completely as you can'}
+                ]}
+            ],{signal:myAbortController.signal})
+
+            for await(const chunk of myStream){
+                myOutputText.append(chunk)
+            }
+
+            clearInterval(myAnalysisTimerId)
+            clearTimeout(myTimeoutId)
+            myStatus.textContent='Analysis complete.'
+        }catch(e){
+            clearInterval(myAnalysisTimerId)
+            clearTimeout(myTimeoutId)
+            console.error('Error during streaming',e)
+            if(e.name==='AbortError'){myStatus.textContent='Description aborted.'}
+            else{myStatus.textContent='An error occurred during analysis. Check console.'}
+        }
+    }catch(e){
+        clearInterval(myTimerId)
+        clearInterval(myAnalysisTimerId)
+        clearTimeout(myTimeoutId)
+        console.error('Unexpected error',e)
+        myStatus.textContent='An unexpected error occurred. Check console.'
+    }finally{
+        myAbortController=null
+        myDescribeButton.disabled=false
+    }
+}
+</script>
+</body>
+</html>
