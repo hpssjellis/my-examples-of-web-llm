@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description with Chrome Built-in API</title>
+</head>
+<body>
+    <h1>Image Description</h1>
+    <p>Select an image to describe it using the Language Model API.</p>
+    
+    <!-- Input for the user to select an image -->
+    <input type="file" id="myImageInput" accept="image/*" />
+    
+    <!-- This will display a preview of the selected image -->
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
+    
+    <!-- Button to trigger the API call -->
+    <button onclick="myStartDescription()">Describe Image</button>
+
+    <!-- Area to display the output from the API -->
+    <h2>Description:</h2>
+    <p id="myOutputText"></p>
+    
+    <!-- This is the new div for the second status timer -->
+    <div id="myStatus">Status here</div>
+
+    <script type="module">
+        // Get references to our HTML elements
+        const myImageInput = document.getElementById('myImageInput');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myOutputText = document.getElementById('myOutputText');
+        const myStatus = document.getElementById('myStatus');
+
+        let myImageBlob = null; // Variable to hold the image data as a Blob
+        let myTimerId = null; // Variable to hold the timer ID for the download phase
+        let myAnalysisTimerId = null; // Variable to hold the timer ID for the analysis phase
+
+        // This function runs when the user selects a new image
+        myImageInput.onchange = async (event) => {
+            const myFile = event.target.files[0];
+            if (myFile) {
+                // Store the selected file as a Blob
+                myImageBlob = myFile;
+                // Create a temporary URL for the image and display it
+                myImagePreview.src = URL.createObjectURL(myFile);
+                myImagePreview.style.display = 'block';
+                // Reset the output text and status
+                myOutputText.textContent = 'Ready to describe...';
+                myStatus.textContent = '';
+            }
+        };
+
+        // This function will be called when the "Describe Image" button is clicked
+        window.myStartDescription = async () => {
+            // Check if an image has been selected
+            if (!myImageBlob) {
+                myOutputText.textContent = 'Please select an image first.';
+                return;
+            }
+
+            // Start the timer and initial message for the download phase
+            let mySeconds = 0;
+            myOutputText.textContent = 'Model is being downloaded...';
+            myTimerId = setInterval(() => {
+                mySeconds++;
+                myOutputText.textContent = `Model is being downloaded... ${mySeconds} seconds`;
+            }, 1000);
+
+            try {
+                // Initialize the Language Model session with an image input
+                const mySession = await LanguageModel.create({
+                    expectedInputs: [{ type: 'image' }],
+                });
+
+                // Stop the download timer and clear its message
+                clearInterval(myTimerId);
+                myOutputText.textContent = '';
+
+                // Start the new timer for the analysis phase
+                let myAnalysisSeconds = 0;
+                myAnalysisTimerId = setInterval(() => {
+                    myAnalysisSeconds++;
+                    myStatus.textContent = `Analyzing... ${myAnalysisSeconds} seconds`;
+                }, 1000);
+
+                // Stream the response from the language model
+                const myStream = mySession.promptStreaming([
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                value: myImageBlob, // Pass the Blob directly here!
+                            },
+                            {
+                                type: 'text',
+                                value: 'Describe this image in a few words.',
+                            },
+                        ],
+                    },
+                ]);
+
+                // Loop through the streamed chunks and append them to the output element
+                for await (const myChunk of myStream) {
+                    myOutputText.append(myChunk);
+                }
+
+                // Stop the analysis timer once the streaming is complete
+                clearInterval(myAnalysisTimerId);
+                myStatus.textContent = 'Analysis complete.';
+
+            } catch (error) {
+                clearInterval(myTimerId); // Make sure to stop both timers on error
+                clearInterval(myAnalysisTimerId);
+                console.error("Error with LanguageModel API:", error);
+                myOutputText.textContent = 'An error occurred. Please check the console for details.';
+                myStatus.textContent = '';
+            }
+        };
+    </script>
+</body>
+</html>
+
+
