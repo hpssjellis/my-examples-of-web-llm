@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Italian → English Translator (Fixed availability)</title>
+</head>
+<body>
+
+  <h2>Italian → English Translator (Chrome built-in AI, corrected)</h2>
+
+  <textarea id="myInputText" rows="6" cols="60">Ciao! Come stai oggi?</textarea><br><br>
+
+  <input type="button" value="Translate (it → en)" onclick="myTranslate()">
+  <input type="button" value="Destroy Translator" onclick="myDestroyTranslator()">
+
+  <h3>Translation</h3>
+  <div id="myOutput">—</div>
+
+  <h3>Status</h3>
+  <div id="myStatus">Initialising: checking API presence...</div>
+
+  <script>
+    let myTranslator = null;
+
+    function mySetStatus(text) {
+      document.getElementById('myStatus').textContent = text;
+    }
+
+    function mySetOutput(text) {
+      document.getElementById('myOutput').textContent = text;
+    }
+
+    async function myDestroyTranslator() {
+      if (myTranslator && typeof myTranslator.destroy === 'function') {
+        try {
+          await myTranslator.destroy();
+          myTranslator = null;
+          mySetStatus('Translator destroyed.');
+          mySetOutput('—');
+        } catch (err) {
+          mySetStatus('Error destroying translator: ' + err);
+        }
+      } else {
+        mySetStatus('No translator to destroy.');
+      }
+    }
+
+    async function myTranslate() {
+      const myText = document.getElementById('myInputText').value.trim();
+      if (!myText) {
+        mySetOutput('Please enter some Italian text first.');
+        return;
+      }
+
+      if (typeof self.Translator === 'undefined') {
+        mySetStatus('Translator API not available in this browser.');
+        mySetOutput('API not present.');
+        return;
+      }
+
+      try {
+        mySetStatus('Checking availability for it → en...');
+        const myAvail = await Translator.availability({ sourceLanguage: 'it', targetLanguage: 'en' });
+        mySetStatus('Availability: ' + myAvail);
+
+        if (myAvail === 'unavailable') {
+          mySetOutput('Translation unavailable for it → en.');
+          return;
+        }
+
+        if (!myTranslator) {
+          mySetStatus('Creating translator (may download model)...');
+          const myOptions = {
+            sourceLanguage: 'it',
+            targetLanguage: 'en',
+            monitor(monitorObj) {
+              monitorObj.addEventListener('downloadprogress', (ev) => {
+                let pct = '';
+                if (ev && typeof ev.loaded === 'number' && typeof ev.total === 'number' && ev.total > 0) {
+                  pct = Math.round((ev.loaded / ev.total) * 100) + '%';
+                } else if (ev && typeof ev.progress === 'number') {
+                  pct = Math.round(ev.progress * 100) + '%';
+                } else {
+                  pct = '(progress)';
+                }
+                mySetStatus('Downloading model: ' + pct);
+              });
+            }
+          };
+          myTranslator = await Translator.create(myOptions);
+        } else {
+          mySetStatus('Using existing translator instance (maybe model already downloaded).');
+        }
+
+        if (myTranslator.ready instanceof Promise) {
+          mySetStatus('Waiting for model to be ready...');
+          await myTranslator.ready;
+        }
+
+        mySetStatus('Translating from Italian to English...');
+        const result = await myTranslator.translate(myText, { source: 'it', target: 'en' });
+        // parse result shape
+        let out = '';
+        if (typeof result === 'string') {
+          out = result;
+        } else if (Array.isArray(result) && result.length > 0) {
+          out = result[0].translation || result[0].translatedText || result[0].output || String(result[0]);
+        } else if (result && typeof result === 'object') {
+          out = result.translatedText || result.translation || result.output || JSON.stringify(result);
+        } else {
+          out = String(result);
+        }
+
+        mySetOutput(out);
+        mySetStatus('Translation complete.');
+      } catch (err) {
+        mySetStatus('Error: ' + (err && err.message ? err.message : err));
+        mySetOutput('Error: ' + String(err));
+      }
+    }
+
+    (function myInitialCheck() {
+      if (typeof self.Translator === 'undefined') {
+        mySetStatus('Translator API not found. Chrome version may not have feature enabled.');
+      } else {
+        mySetStatus('Translator API detected. Ready to translate Italian → English (may require model download).');
+      }
+    })();
+
+  </script>
+
+</body>
+</html>
