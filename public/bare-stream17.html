@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description with Chrome Built-in API</title>
+</head>
+<body>
+    <h1>Chrome Built-In API Image Description</h1>
+    <p>Select an image, or use your webcam to capture one, to describe it using the Language Model API.</p>
+    <input type="file" id="myImageInput" accept="image/*" />
+    <button onclick="myStartWebcam()">Start Webcam</button>
+    <button id="myCaptureImageButton" onclick="myCaptureImage()" style="display: none;">Capture Image</button>
+    <button id="myDescribeButton" onclick="myStartDescription()">Describe Image</button>
+    <button id="myStopButton" onclick="myStopDescription()" style="display: none;">Stop Description</button>
+    <div id="myStatus">Status here</div>
+    <h2>Description:</h2>
+    <p id="myOutputText"></p>
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
+    <video id="myWebcamPreview" style="display: none; max-width: 100%; height: auto;"></video>
+    <canvas id="myCanvas" style="display: none;"></canvas>
+    <script type="module">
+        const myImageInput = document.getElementById('myImageInput');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myOutputText = document.getElementById('myOutputText');
+        const myStatus = document.getElementById('myStatus');
+        const myWebcamPreview = document.getElementById('myWebcamPreview');
+        const myCaptureImageButton = document.getElementById('myCaptureImageButton');
+        const myDescribeButton = document.getElementById('myDescribeButton');
+        const myStopButton = document.getElementById('myStopButton');
+        const myCanvas = document.getElementById('myCanvas');
+        let myImageBlob = null;
+        let myTimerId = null;
+        let myAnalysisTimerId = null;
+        let myAbortController = null;
+        let myTimeoutId = null;
+        myImageInput.onchange = async (event) => {
+            const myFile = event.target.files[0];
+            if (myFile) {
+                myImageBlob = myFile;
+                myImagePreview.src = URL.createObjectURL(myFile);
+                myImagePreview.style.display = 'block';
+                myWebcamPreview.style.display = 'none';
+                myCaptureImageButton.style.display = 'none';
+                myOutputText.textContent = 'Ready to describe...';
+                myStatus.textContent = '';
+            }
+        };
+        window.myStartWebcam = async () => {
+            try {
+                const myStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                myWebcamPreview.srcObject = myStream;
+                myWebcamPreview.style.display = 'block';
+                myWebcamPreview.play();
+                myCaptureImageButton.style.display = 'block';
+                myImageInput.style.display = 'none';
+                myImagePreview.style.display = 'none';
+                myOutputText.textContent = 'Webcam active. Click "Capture Image" to continue.';
+                myImageBlob = null;
+            } catch (error) {
+                myOutputText.textContent = 'Error starting webcam: ' + error.message;
+            }
+        };
+        window.myCaptureImage = () => {
+            myCanvas.width = myWebcamPreview.videoWidth;
+            myCanvas.height = myWebcamPreview.videoHeight;
+            const myContext = myCanvas.getContext('2d');
+            myContext.drawImage(myWebcamPreview, 0, 0, myCanvas.width, myCanvas.height);
+            myCanvas.toBlob((myBlob) => {
+                myImageBlob = myBlob;
+                myImagePreview.src = URL.createObjectURL(myBlob);
+                myImagePreview.style.display = 'block';
+                myWebcamPreview.pause();
+                myWebcamPreview.srcObject.getTracks().forEach(track => track.stop());
+                myWebcamPreview.style.display = 'none';
+                myCaptureImageButton.style.display = 'none';
+                myImageInput.style.display = 'block';
+                myOutputText.textContent = 'Image captured. Ready to describe...';
+            }, 'image/jpeg');
+        };
+        window.myStopDescription = () => {
+            if (myAbortController) {
+                myAbortController.abort();
+                myAbortController = null;
+            }
+            clearInterval(myTimerId);
+            clearInterval(myAnalysisTimerId);
+            clearTimeout(myTimeoutId);
+            myStatus.textContent = 'Process stopped.';
+            myDescribeButton.disabled = false;
+            myStopButton.style.display = 'none';
+        };
+        window.myStartDescription = async () => {
+            if (!myImageBlob) {
+                myOutputText.textContent = 'Please select or capture an image first.';
+                return;
+            }
+            myDescribeButton.disabled = true;
+            myStopButton.style.display = 'block';
+            myAbortController = new AbortController();
+            let mySeconds = 0;
+            myOutputText.textContent = 'Model is being downloaded...';
+            myTimerId = setInterval(() => {
+                mySeconds++;
+                myOutputText.textContent = `Model is being downloaded... ${mySeconds} seconds`;
+            }, 1000);
+            myTimeoutId = setTimeout(() => {
+                if (myAbortController) {
+                    myAbortController.abort();
+                }
+            }, 30000); // 30 second timeout
+            try {
+                const mySession = await LanguageModel.create({
+                    expectedInputs: [{ type: 'image' }],
+                });
+                clearInterval(myTimerId);
+                myOutputText.textContent = '';
+                let myAnalysisSeconds = 0;
+                myAnalysisTimerId = setInterval(() => {
+                    myAnalysisSeconds++;
+                    myStatus.textContent = `Analyzing... ${myAnalysisSeconds} seconds`;
+                }, 1000);
+                const myStream = mySession.promptStreaming([
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                value: myImageBlob,
+                            },
+                            {
+                                type: 'text',
+                                value: 'Describe this image as completely as you can',
+                            },
+                        ],
+                    },
+                ], { signal: myAbortController.signal });
+                for await (const myChunk of myStream) {
+                    myOutputText.append(myChunk);
+                }
+                clearInterval(myAnalysisTimerId);
+                clearTimeout(myTimeoutId);
+                myStatus.textContent = 'Analysis complete.';
+            } catch (error) {
+                clearInterval(myTimerId);
+                clearInterval(myAnalysisTimerId);
+                clearTimeout(myTimeoutId);
+                if (error.name === 'AbortError') {
+                    myStatus.textContent = 'Description process was stopped.';
+                } else {
+                    myStatus.textContent = 'An error occurred. Please check the console for details.';
+                }
+            } finally {
+                myAbortController = null;
+                myDescribeButton.disabled = false;
+                myStopButton.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
