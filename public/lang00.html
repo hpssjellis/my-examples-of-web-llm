@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LanguageDetector API Demo</title>
+</head>
+<body>
+
+  <h2>Language Detection (Proposal API style)</h2>
+  <p>Type some text and click "Detect Language":</p>
+
+  <textarea id="myInputText" rows="4" cols="50">Buongiorno, come va?</textarea><br><br>
+
+  <input type="button" value="Detect Language" onclick="myDetectLanguage()">
+
+  <p id="myResult">Language: <em>unknown</em></p>
+
+  <div id="myStatus">Status: idle</div>
+
+  <script>
+    async function myDetectLanguage() {
+      const myText = document.getElementById("myInputText").value;
+      const myResult = document.getElementById("myResult");
+      const myStatus = document.getElementById("myStatus");
+
+      // Check if the proposal-based API is present
+      if (typeof window.LanguageDetector !== "object" && typeof window.LanguageDetector !== "function") {
+        myStatus.innerHTML = 
+          "LanguageDetector API (proposal) not available.<br>" +
+          "You might need a newer Chrome / experimental build.<br>" +
+          "Check translation-api flags / enable related features.";
+        return;
+      }
+
+      try {
+        myStatus.textContent = "Status: checking availability...";
+        const myAvail = await window.LanguageDetector.availability();
+
+        myStatus.textContent = "Availability: " + myAvail;
+
+        // If “unavailable”, we can't proceed
+        if (myAvail === "unavailable") {
+          myStatus.textContent = "Language detection unavailable in this environment.";
+          return;
+        }
+
+        // Create with monitor to track download progress
+        myStatus.textContent = "Status: creating detector (may download model)...";
+        const myDetector = await window.LanguageDetector.create({
+          monitor(monitorObj) {
+            monitorObj.addEventListener("downloadprogress", (e) => {
+              const pct = Math.round(e.loaded * 100);
+              myStatus.textContent = "Downloading model: " + pct + "%";
+            });
+          }
+        });
+
+        myStatus.textContent = "Status: detector created, model initializing…";
+
+        // Some proposal versions may have .ready or detect directly after create
+        // But .create(...) may already wait for the model; depends on implementation
+
+        // Now run detection
+        myStatus.textContent = "Status: running detection...";
+        const myDetections = await myDetector.detect(myText);
+
+        if (myDetections && myDetections.length > 0) {
+          const top = myDetections[0];
+          myResult.textContent = "Language: " + top.detectedLanguage + " (confidence " + top.confidence.toFixed(2) + ")";
+        } else {
+          myResult.textContent = "No language detected or empty result.";
+        }
+
+        myStatus.textContent = "Status: detection complete.";
+      } catch (err) {
+        myResult.textContent = "Error: " + err.toString();
+        myStatus.textContent = "Status: failed (" + err.toString() + ")";
+      }
+    }
+  </script>
+
+</body>
+</html>
