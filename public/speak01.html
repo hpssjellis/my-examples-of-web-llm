@@ -1,0 +1,15 @@
+// Check for browser support
+if ('speechSynthesis' in window) {
+  // Create a new utterance object
+  myUtterance = new SpeechSynthesisUtterance('Hello world!');
+
+  // Set properties (optional)
+  myUtterance.lang = 'en-US';
+  myUtterance.rate = 1.0;
+  myUtterance.pitch = 1.0;
+
+  // Speak the text
+  window.speechSynthesis.speak(myUtterance);
+} else {
+  alert('Sorry, your browser does not support speech synthesis.');
+}
