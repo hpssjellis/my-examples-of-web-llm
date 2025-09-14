@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h3>Offline Audio Transcriber</h3>
+
+    <p>
+      Output language:
+      <select id="myOutputLang">
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="ja">Japanese</option>
+      </select>
+    </p>
+
+    <div id="myStatus">Checking model availability…</div>
+    <br>
+
+    <input type="button" value="Start Recording" onclick="myStartRecording()">
+    <input type="button" value="Stop Recording" onclick="myStopRecording()">
+    <br><br>
+
+    <input type="file" id="myFileInput" accept="audio/*" onchange="myHandleFile(this)">
+    <br><br>
+
+    <p><b>Transcription:</b></p>
+    <pre id="myOutput"></pre>
+
+    <script>
+      let myRecorder, myChunks = [], mySession, myStream;
+      let myReady = false;
+
+      async function myCheckModel() {
+        const status = document.getElementById("myStatus");
+        let availability = await LanguageModel.availability();
+        if (availability === "downloadable") {
+          status.textContent = "Model downloadable. Downloading…";
+          await LanguageModel.download();
+          let check = setInterval(async () => {
+            let a = await LanguageModel.availability();
+            if (a === "available") {
+              clearInterval(check);
+              status.textContent = "Model ready.";
+              myReady = true;
+            }
+          }, 1000);
+        } else if (availability === "downloading") {
+          status.textContent = "Model downloading…";
+          let check = setInterval(async () => {
+            let a = await LanguageModel.availability();
+            if (a === "available") {
+              clearInterval(check);
+              status.textContent = "Model ready.";
+              myReady = true;
+            }
+          }, 1000);
+        } else if (availability === "available") {
+          status.textContent = "Model ready.";
+          myReady = true;
+        } else {
+          status.textContent = "Model not supported in this browser.";
+        }
+      }
+
+      async function myEnsureSession() {
+        const lang = document.getElementById("myOutputLang").value;
+        if (!mySession || mySession.outputLanguage !== lang) {
+          mySession = await LanguageModel.create({
+            systemPrompt: "You are a speech-to-text transcriber.",
+            inputAudioFormat: { encoding: "pcm16", sampleRateHz: 44100 },
+            outputLanguage: lang
+          });
+        }
+        return mySession;
+      }
+
+      async function myStartRecording() {
+        if (!myReady) {
+          document.getElementById("myStatus").textContent = "Model not ready yet.";
+          return;
+        }
+
+        myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        myRecorder = new MediaRecorder(myStream);
+        myRecorder.ondataavailable = e => myChunks.push(e.data);
+
+        myRecorder.onstop = async () => {
+          const blob = new Blob(myChunks, { type: "audio/webm" });
+          myChunks = [];
+          await myProcessAudioBlob(blob);
+        };
+
+        myRecorder.start();
+        document.getElementById("myStatus").textContent = "Recording…";
+      }
+
+      function myStopRecording() {
+        if (myRecorder && myRecorder.state === "recording") {
+          myRecorder.stop();
+          myStream.getTracks().forEach(track => track.stop());
+          document.getElementById("myStatus").textContent = "Processing transcription…";
+        }
+      }
+
+      async function myHandleFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        document.getElementById("myStatus").textContent = "Processing file…";
+        await myProcessAudioBlob(file);
+      }
+
+      async function myProcessAudioBlob(blob) {
+        const arrayBuffer = await blob.arrayBuffer();
+        const float32 = await myDecode(arrayBuffer);
+
+        const session = await myEnsureSession();
+        const writer = session.writable.getWriter();
+        await writer.write({ audio: float32 });
+        await writer.close();
+
+        const reader = session.readable.getReader();
+        let text = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value?.output[0]?.content[0]?.text) {
+            text += value.output[0].content[0].text;
+          }
+        }
+        document.getElementById("myOutput").textContent = text;
+        document.getElementById("myStatus").textContent = "Transcription complete.";
+      }
+
+      async function myDecode(arrayBuffer) {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        return audioBuffer.getChannelData(0);
+      }
+
+      // Run check on load
+      myCheckModel();
+    </script>
+  </body>
+</html>
