@@ -1,0 +1,83 @@
+<script type="module">
+  const myButton = document.getElementById('myButton');
+  const myInputFile = document.getElementById('myInputFile');
+  const myAudioElement = document.getElementById('myAudioElement');
+  const myLogs = document.getElementById('myLogs');
+
+  myButton.onclick = async () => {
+    let myAudioStream;
+    try {
+      myAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const myChunks = [];
+      const myRecorder = new MediaRecorder(myAudioStream);
+      myRecorder.ondataavailable = ({ data }) => myChunks.push(data);
+      myRecorder.start();
+      await new Promise(r => setTimeout(r, 5000));
+      myRecorder.stop();
+      await new Promise(r => (myRecorder.onstop = r));
+
+      const myBlob = new Blob(myChunks, { type: myRecorder.mimeType });
+
+      // Save it for later
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(myBlob);
+      a.target = "_blank";
+      a.download = "recording.mp3";
+      a.click();
+
+      await myTranscribe(myBlob);
+    } catch (myError) {
+      myLog("❌ " + myError);
+    } finally {
+      myLogs.innerHTML += "<hr>";
+      myAudioStream?.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  myInputFile.oninput = async (myEvent) => {
+    try {
+      const myFile = myEvent.target.files[0];
+      const myBlob = new Blob([myFile]);
+      myAudioElement.src = URL.createObjectURL(myBlob);
+      await myTranscribe(myBlob);
+    } catch (myError) {
+      myLog("❌ " + myError);
+    } finally {
+      myLogs.innerHTML += "<hr>";
+    }
+  };
+
+  async function myTranscribe(myBlob) {
+    const myBuffer = await myBlob.arrayBuffer();
+
+    const myParams = await LanguageModel.params();
+    const mySession = await LanguageModel.create({
+      expectedInputs: [{ type: "audio" }],
+      temperature: 0.1,
+      topK: myParams.defaultTopK,
+    });
+
+    const myStream = mySession.promptStreaming([
+      {
+        role: "user",
+        content: [
+          { type: "text", value: "transcribe this audio" },
+          { type: "audio", value: myBuffer },
+        ],
+      },
+    ]);
+
+    for await (const myChunk of myStream) {
+      // Convert object -> string safely
+      const myText = typeof myChunk === "string" 
+        ? myChunk 
+        : JSON.stringify(myChunk);
+
+      myLogs.appendChild(document.createTextNode(myText + "\n"));
+    }
+  }
+
+  function myLog(myText) {
+    myLogs.appendChild(document.createTextNode(myText + "\n"));
+  }
+</script>
