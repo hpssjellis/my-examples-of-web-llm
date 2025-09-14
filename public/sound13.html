@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Offline Audio Transcriber</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
+    button, input[type="file"] { margin: 1em 0; }
+    audio { display: block; margin-top: 1em; }
+    pre { background: #f0f0f0; padding: 1em; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Offline Audio Transcriber</h1>
+  <p>Upload an audio file or record your voice, then transcribe it using Chrome’s built-in AI.</p>
+
+  <input type="file" accept="audio/*" id="audioFile" />
+  <button onclick="transcribeFile()">Transcribe Uploaded Audio</button>
+
+  <button onclick="startRecording()">🎙️ Start Recording</button>
+  <button onclick="stopRecording()">⏹️ Stop & Transcribe</button>
+  <audio id="audioPlayer" controls></audio>
+
+  <h2>Transcription Output:</h2>
+  <pre id="outputText">...</pre>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function transcribeBlob(blob) {
+      try {
+        const result = await navigator.ai.task('transcribe', { input: blob });
+        document.getElementById('outputText').textContent = result.output;
+      } catch (err) {
+        document.getElementById('outputText').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function transcribeFile() {
+      const fileInput = document.getElementById('audioFile');
+      if (fileInput.files.length === 0) return;
+      const audioBlob = fileInput.files[0];
+      document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
+      transcribeBlob(audioBlob);
+    }
+
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.start();
+    }
+
+    function stopRecording() {
+      mediaRecorder.stop();
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        document.getElementById('audioPlayer').src = URL.createObjectURL(audioBlob);
+        transcribeBlob(audioBlob);
+      };
+    }
+  </script>
+</body>
+</html>
