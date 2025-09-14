@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Simple Speech App</title>
+</head>
+<body>
+
+    <h1 id="myTitle">My Simple Speech App</h1>
+    <p>Type some text and press the button to hear it spoken out loud.</p>
+
+    <div>
+        <label for="myLanguageSelect">Choose a language:</label>
+        <select id="myLanguageSelect">
+            <option value="en-US" data-starting-text="Hello World">English (United States)</option>
+            <option value="es-ES" data-starting-text="Hola Mundo">Spanish (Spain)</option>
+            <option value="fr-FR" data-starting-text="Bonjour le monde">French (France)</option>
+            <option value="de-DE" data-starting-text="Hallo Welt">German (Germany)</option>
+            <option value="ja-JP" data-starting-text="こんにちは世界">Japanese (Japan)</option>
+        </select>
+    </div>
+    <br>
+    
+    <textarea id="myTextInput" rows="4" cols="50">Hello World</textarea>
+    <br><br>
+    <button id="mySpeakButton">Speak Text</button>
+    
+    <p id="myStatusMessage"></p>
+    
+    <script>
+        // Use descriptive names and camelCase
+        const myTextInput = document.getElementById("myTextInput");
+        const mySpeakButton = document.getElementById("mySpeakButton");
+        const myStatusMessage = document.getElementById("myStatusMessage");
+        const myLanguageSelect = document.getElementById("myLanguageSelect");
+
+        // Define the function
+        const mySpeakFunction = () => {
+            if ('speechSynthesis' in window) {
+                const myTextToSpeak = myTextInput.value;
+                const mySelectedLanguage = myLanguageSelect.value;
+
+                if (myTextToSpeak.trim() === '') {
+                    myStatusMessage.textContent = 'Please enter some text to speak.';
+                    return;
+                }
+
+                const myUtterance = new SpeechSynthesisUtterance(myTextToSpeak);
+                myUtterance.lang = mySelectedLanguage;
+
+                // Set a simple status message while speaking
+                myStatusMessage.textContent = 'Speaking...';
+                
+                myUtterance.onend = () => {
+                    myStatusMessage.textContent = 'Finished speaking.';
+                };
+
+                myUtterance.onerror = (event) => {
+                    myStatusMessage.textContent = 'An error occurred: ' + event.error;
+                };
+
+                window.speechSynthesis.speak(myUtterance);
+
+            } else {
+                myStatusMessage.textContent = 'Sorry, your browser does not support the Web Speech API.';
+            }
+        };
+
+        // Event listener for when the language selection changes
+        myLanguageSelect.addEventListener('change', (event) => {
+            const mySelectedOption = event.target.options[event.target.selectedIndex];
+            const myStartingText = mySelectedOption.getAttribute('data-starting-text');
+            myTextInput.value = myStartingText;
+        });
+
+        // Static link to the function on the button
+        mySpeakButton.onclick = mySpeakFunction;
+        
+    </script>
+
+</body>
+</html>
