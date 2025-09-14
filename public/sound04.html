@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2025 Google LLC
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎥</text></svg>"
+    />
+    <!-- AIPromptAPIMultimodalInput origin token expiring Mar 24, 2026 -->
+    <meta
+      http-equiv="origin-trial"
+      content="AoXwZGsUZlGEyuueX5nR6tujynrCfWhNWQnZcHTy3AZkXtCMULt/UJs6+/1Bp5jVw7Ue96Tcyf1IO8IRUMimAgcAAABeeyJvcmlnaW4iOiJodHRwczovL2Nocm9tZS5kZXY6NDQzIiwiZmVhdHVyZSI6IkFJUHJvbXB0QVBJTXVsdGltb2RhbElucHV0IiwiZXhwaXJ5IjoxNzc0MzEwNDAwfQ=="
+    />
+    <title>Audio Transcriber</title>
+    <style>
+      body {
+        font-family: helvetica, arial, sans-serif;
+        margin: 2em;
+      }
+
+      h1 {
+        margin-block-end: 0;
+      }
+
+      #myLogs {
+        margin-top: 1em;
+        white-space: pre-line;
+      }
+
+      button {
+        margin-bottom: 12px;
+      }
+
+      audio {
+        margin-top: 12px;
+        display: block;
+      }
+
+      @media screen and (min-width: 640px) {
+        body {
+          margin: 2em auto;
+          max-width: calc(640px - 2em);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎥 MediaRecorder + Audio Prompt API</h1>
+    <ol>
+      <li>
+        <label>
+          Record myself for 5s and transcribe:
+          <button id="myButton">Record</button>
+        </label>
+      </li>
+      <li>
+        <label>
+          Select a file to transcribe:
+          <input type="file" id="myInputFile" />
+          <audio id="myAudioElement" controls></audio>
+        </label>
+      </li>
+    </ol>
+    <hr />
+    <pre id="myLogs"></pre>
+
+<script type="module">
+  const myButton = document.getElementById('myButton');
+  const myInputFile = document.getElementById('myInputFile');
+  const myAudioElement = document.getElementById('myAudioElement');
+  const myLogs = document.getElementById('myLogs');
+
+  myButton.onclick = async () => {
+    let myAudioStream;
+    try {
+      myAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const myChunks = [];
+      const myRecorder = new MediaRecorder(myAudioStream);
+      myRecorder.ondataavailable = ({ data }) => myChunks.push(data);
+      myRecorder.start();
+      await new Promise(r => setTimeout(r, 5000));
+      myRecorder.stop();
+      await new Promise(r => (myRecorder.onstop = r));
+
+      const myBlob = new Blob(myChunks, { type: myRecorder.mimeType });
+
+      // Save it for later
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(myBlob);
+      a.target = "_blank";
+      a.download = "recording.mp3";
+      a.click();
+
+      await myTranscribe(myBlob);
+    } catch (myError) {
+      myLog("❌ " + myError);
+    } finally {
+      myLogs.innerHTML += "<hr>";
+      myAudioStream?.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  myInputFile.oninput = async (myEvent) => {
+    try {
+      const myFile = myEvent.target.files[0];
+      const myBlob = new Blob([myFile]);
+      myAudioElement.src = URL.createObjectURL(myBlob);
+      await myTranscribe(myBlob);
+    } catch (myError) {
+      myLog("❌ " + myError);
+    } finally {
+      myLogs.innerHTML += "<hr>";
+    }
+  };
+
+  async function myTranscribe(myBlob) {
+    const myBuffer = await myBlob.arrayBuffer();
+
+    const myParams = await LanguageModel.params();
+    const mySession = await LanguageModel.create({
+      expectedInputs: [{ type: "audio" }],
+      temperature: 0.1,
+      topK: myParams.defaultTopK,
+    });
+
+    const myStream = mySession.promptStreaming([
+      {
+        role: "user",
+        content: [
+          { type: "text", value: "transcribe this audio" },
+          { type: "audio", value: myBuffer },
+        ],
+      },
+    ]);
+
+    for await (const myChunk of myStream) {
+      // Convert object -> string safely
+      const myText = typeof myChunk === "string" 
+        ? myChunk 
+        : JSON.stringify(myChunk);
+
+      myLogs.appendChild(document.createTextNode(myText + "\n"));
+    }
+  }
+
+  function myLog(myText) {
+    myLogs.appendChild(document.createTextNode(myText + "\n"));
+  }
+</script>
+  </body>
+</html>
