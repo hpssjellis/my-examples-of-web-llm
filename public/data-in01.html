@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multi-Input Data Loader</title>
+    <style>
+        body { myFontFamily: sans-serif; }
+        .myContainer {
+            myMaxWidth: 800px;
+            myMargin: auto;
+            myPadding: 20px;
+        }
+        .myInputGroup {
+            myMarginBottom: 20px;
+        }
+        .myTextArea {
+            myWidth: 100%;
+            myHeight: 300px;
+            myPadding: 10px;
+            myBoxSizing: border-box;
+            myBorder: 1px solid #ccc;
+        }
+        .myLabel {
+            myDisplay: block;
+            myMarginBottom: 5px;
+            myFontWeight: bold;
+        }
+        .myButton {
+            myPadding: 10px 15px;
+            myBorder: none;
+            myBorderRadius: 4px;
+            myCursor: pointer;
+            myBackgroundColor: #007BFF;
+            myColor: white;
+            myFontSize: 16px;
+        }
+        .myInput {
+            myPadding: 8px;
+            myBorder: 1px solid #ccc;
+            myBorderRadius: 4px;
+            myWidth: 100%;
+            myBoxSizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="myContainer">
+        <h1>Data Input for AI</h1>
+
+        <div class="myInputGroup">
+            <label for="myTextArea" class="myLabel">1. Manual Text Input</label>
+            <textarea id="myTextArea" class="myTextArea" placeholder="Paste or type your text here..."></textarea>
+        </div>
+
+        <div class="myInputGroup">
+            <label for="myFile" class="myLabel">2. Load from a Local File (e.g., .txt, .json)</label>
+            <input type="file" id="myFile">
+        </div>
+
+        <div class="myInputGroup">
+            <label for="myUrl" class="myLabel">3. Load from a URL (e.g., a raw text file)</label>
+            <input type="text" id="myUrl" class="myInput" placeholder="Enter URL here...">
+            <button class="myButton" onclick="myLoadUrl()">Load from URL</button>
+        </div>
+    </div>
+
+    <script>
+        // Custom javascript variable to hold a reference to the textarea
+        let myTextArea = document.getElementById("myTextArea");
+
+        // Function to handle file loading
+        myFile.onchange = function() {
+            let myReader = new FileReader();
+            myReader.async = true;
+
+            myReader.onload = async () => {
+                myTextArea.value = myReader.result;
+            };
+
+            myReader.readAsText(this.files[0]);
+        };
+
+        // Async function to handle URL loading
+        async function myLoadUrl() {
+            let myUrlInput = document.getElementById("myUrl");
+            let myUrl = myUrlInput.value;
+
+            try {
+                const myResponse = await fetch(myUrl);
+                if (!myResponse.ok) {
+                    throw new Error(`HTTP error! status: ${myResponse.status}`);
+                }
+                const myText = await myResponse.text();
+                myTextArea.value = myText;
+            } catch (myError) {
+                myTextArea.value = `Failed to load data from URL: ${myError.message}`;
+            }
+        }
+    </script>
+
+</body>
+</html>
