@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description with Chrome Built-in API</title>
+</head>
+<body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+    <h1 style="text-align: center;">Chrome Built-In API Image Description</h1>
+    <p style="text-align: center;">Select an image to describe it using the Language Model API.</p>
+    
+    <div style="border: 2px dashed #ccc; padding: 20px; text-align: center; margin-bottom: 20px;">
+        <p>Drag & Drop an Image File Here</p>
+        <p>or</p>
+        <input type="file" id="myImageInput" accept="image/*" />
+    </div>
+
+    <button id="myDescribeButton" onclick="myStartDescription()">Describe Image</button>
+    
+    <div id="myStatus" style="margin-top: 20px;">Status here</div>
+    
+    <h2 style="margin-top: 20px;">Description:</h2>
+    <p id="myOutputText"></p>
+    
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto; border: 1px solid #ccc; margin-top: 20px;" />
+
+    <script type="module">
+        const myImageInput = document.getElementById('myImageInput');
+        const myImagePreview = document.getElementById('myImagePreview');
+        const myOutputText = document.getElementById('myOutputText');
+        const myStatus = document.getElementById('myStatus');
+        const myDescribeButton = document.getElementById('myDescribeButton');
+        let myImageBlob = null;
+        let myTimerId = null;
+        let myAnalysisTimerId = null;
+
+        // Check for API availability on page load
+        if (!window.ai || !window.ai.LanguageModel) {
+            myStatus.textContent = "AI API not found. Please ensure Chrome flags are enabled and the feature is supported.";
+            myDescribeButton.disabled = true;
+        }
+
+        myImageInput.onchange = async (event) => {
+            const myFile = event.target.files[0];
+            if (myFile) {
+                myImageBlob = myFile;
+                myImagePreview.src = URL.createObjectURL(myFile);
+                myImagePreview.style.display = 'block';
+                myOutputText.textContent = 'Ready to describe...';
+                myStatus.textContent = '';
+            }
+        };
+
+        // Add drag-and-drop functionality
+        const dropZone = document.body;
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+        dropZone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                myHandleFile(file);
+            }
+        });
+
+        function myHandleFile(myFile) {
+            myImageBlob = myFile;
+            myImagePreview.src = URL.createObjectURL(myFile);
+            myImagePreview.style.display = 'block';
+            myOutputText.textContent = 'Ready to describe...';
+            myStatus.textContent = '';
+        }
+
+        window.myStartDescription = async () => {
+            if (!myImageBlob) {
+                myOutputText.textContent = 'Please select or drop an image first.';
+                return;
+            }
+
+            myDescribeButton.disabled = true;
+            myStatus.textContent = "Checking model availability...";
+
+            try {
+                const myAvailability = await window.ai.LanguageModel.availability();
+                if (myAvailability === "downloadable") {
+                    myStatus.textContent = "Model downloadable. Downloading...";
+                    await window.ai.LanguageModel.download();
+                }
+
+                myStatus.textContent = 'Model ready, analyzing...';
+                const mySession = await window.ai.LanguageModel.create({
+                    expectedInputs: [{ type: 'image' }],
+                });
+                
+                myOutputText.textContent = 'Analysis starting...';
+
+                const myStream = await mySession.promptStreaming([
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                value: myImageBlob,
+                            },
+                            {
+                                type: 'text',
+                                value: 'Describe this image as completely as you can',
+                            },
+                        ],
+                    },
+                ]);
+                
+                myOutputText.textContent = ''; // Clear initial text
+                for await (const myChunk of myStream) {
+                    myOutputText.append(myChunk);
+                }
+                
+                myStatus.textContent = 'Analysis complete.';
+
+            } catch (error) {
+                console.error("Error with LanguageModel API:", error);
+                myStatus.textContent = 'An error occurred. Please check the console for details.';
+                myOutputText.textContent = '';
+            } finally {
+                myDescribeButton.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
