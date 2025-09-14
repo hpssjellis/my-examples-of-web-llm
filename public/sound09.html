@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Audio Transcriber</title>
+    <!-- Tailwind CSS for minimal styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4 text-gray-800">
+
+    <div class="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
+        <h3 class="text-2xl font-bold mb-6 text-center">Offline Audio Transcriber</h3>
+
+        <div class="mb-4">
+            <p class="text-lg">
+                Output language:
+                <select id="myOutputLang" class="ml-2 p-2 rounded-md border border-gray-300">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="ja">Japanese</option>
+                </select>
+            </p>
+        </div>
+
+        <div id="myStatus" class="mb-4 font-semibold text-center text-blue-600">Checking model availability…</div>
+        
+        <div class="flex flex-col space-y-4 mb-6">
+            <button id="myStartButton" onclick="myStartRecording()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200">Start Recording</button>
+            <button id="myStopButton" onclick="myStopRecording()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200">Stop Recording</button>
+        </div>
+
+        <div class="mb-6 flex flex-col items-center">
+            <label for="myFileInput" class="cursor-pointer bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md transition-colors duration-200">
+                Choose an Audio File
+            </label>
+            <input type="file" id="myFileInput" accept="audio/*" onchange="myHandleFile(this)" class="hidden">
+        </div>
+
+        <div class="mb-4">
+            <p class="text-lg font-bold mb-2">Transcription:</p>
+            <pre id="myOutput" class="bg-gray-50 border border-gray-300 rounded-md p-4 whitespace-pre-wrap overflow-x-auto text-sm"></pre>
+        </div>
+    </div>
+
+    <script>
+        // This is a placeholder for a hypothetical LanguageModel API.
+        // It simulates the asynchronous behavior for a teaching example.
+        const LanguageModel = {
+            async availability() {
+                // Simulate a delay for checking availability
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                // In a real app, this would check if the model is downloaded
+                return "available";
+            },
+            async download() {
+                // Simulate a download process
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            },
+            async create({ outputLanguage, initialPrompts }) {
+                // Simulate creating a transcription session
+                console.log(`Creating session for language: ${outputLanguage}`);
+                return {
+                    outputLanguage,
+                    async promptStreaming(parts) {
+                        // Simulate a transcription process
+                        const textContent = parts[0].content[0].text;
+                        console.log(`Prompting with: ${textContent}`);
+                        
+                        const sampleText = "The quick brown fox jumps over the lazy dog. This is an example of a simple transcription.";
+                        let currentText = "";
+                        const stream = new ReadableStream({
+                            async start(controller) {
+                                for (const word of sampleText.split(" ")) {
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                    currentText += word + " ";
+                                    controller.enqueue({
+                                        output: [{ content: [{ text: word + " " }] }]
+                                    });
+                                }
+                                controller.close();
+                            }
+                        });
+                        return stream;
+                    }
+                };
+            }
+        };
+
+        let myRecorder, myChunks = [], myStream, mySession;
+        let myReady = false;
+
+        async function myCheckModel() {
+            const myStatus = document.getElementById("myStatus");
+            const myStartButton = document.getElementById("myStartButton");
+            myStartButton.disabled = true;
+
+            myStatus.textContent = "Checking model availability…";
+            let myAvailability = await LanguageModel.availability();
+
+            if (myAvailability === "downloadable") {
+                myStatus.textContent = "Model downloadable. Downloading…";
+                await LanguageModel.download();
+            }
+
+            myReady = true;
+            myStatus.textContent = "Model ready.";
+            myStartButton.disabled = false;
+        }
+
+        async function myEnsureSession() {
+            const myLang = document.getElementById("myOutputLang").value;
+            if (!mySession || mySession.outputLanguage !== myLang) {
+                mySession = await LanguageModel.create({
+                    outputLanguage: myLang,
+                    initialPrompts: [{ role: "system", content: "You are a speech-to-text transcriber." }]
+                });
+            }
+            return mySession;
+        }
+
+        async function myStartRecording() {
+            const myStatus = document.getElementById("myStatus");
+            const myOutput = document.getElementById("myOutput");
+
+            if (!myReady) {
+                myStatus.textContent = "Model not ready yet.";
+                return;
+            }
+
+            try {
+                myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                myRecorder = new MediaRecorder(myStream);
+                myChunks = []; // Clear previous chunks
+
+                myRecorder.ondataavailable = (event) => {
+                    myChunks.push(event.data);
+                };
+
+                myRecorder.onstop = async () => {
+                    const myBlob = new Blob(myChunks, { type: "audio/webm" });
+                    myChunks = [];
+                    await myProcessAudioBlob(myBlob);
+                };
+
+                myRecorder.start();
+                myStatus.textContent = "Recording…";
+                myOutput.textContent = "Recording started...";
+            } catch (error) {
+                myStatus.textContent = "Recording failed. Please ensure microphone access is granted.";
+                console.error("Recording error:", error);
+            }
+        }
+
+        function myStopRecording() {
+            const myStatus = document.getElementById("myStatus");
+            if (myRecorder && myRecorder.state === "recording") {
+                myRecorder.stop();
+                myStream.getTracks().forEach(track => track.stop());
+                myStatus.textContent = "Processing transcription…";
+            }
+        }
+
+        async function myHandleFile(myInput) {
+            const myFile = myInput.files[0];
+            const myStatus = document.getElementById("myStatus");
+            const myOutput = document.getElementById("myOutput");
+
+            if (!myFile) return;
+
+            myStatus.textContent = "Processing file…";
+            myOutput.textContent = "";
+            await myProcessAudioBlob(myFile);
+        }
+
+        async function myProcessAudioBlob(myBlob) {
+            const myStatus = document.getElementById("myStatus");
+            const myOutput = document.getElementById("myOutput");
+            
+            try {
+                const myArrayBuffer = await myBlob.arrayBuffer();
+                const mySession = await myEnsureSession();
+                const myStream = await mySession.promptStreaming([{
+                    role: "user",
+                    content: [
+                        { type: "text", value: "Please transcribe this audio file." },
+                        { type: "audio", value: myArrayBuffer }
+                    ]
+                }]);
+
+                let myText = "";
+                for await (const myChunk of myStream) {
+                    if (myChunk?.output?.[0]?.content?.[0]?.text) {
+                        myText += myChunk.output[0].content[0].text;
+                        myOutput.textContent = myText;
+                    }
+                }
+
+                myStatus.textContent = "Transcription complete.";
+            } catch (error) {
+                myStatus.textContent = "Transcription failed. See console for details.";
+                console.error("Transcription error:", error);
+            }
+        }
+
+        // Run check on load
+        window.onload = myCheckModel;
+    </script>
+</body>
+</html>
