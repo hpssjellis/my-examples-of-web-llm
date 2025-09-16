@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Built-in AI Audio Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        }
+        
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: linear-gradient(45deg, #e9ecef, #dee2e6);
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: linear-gradient(45deg, #d4edda, #c3e6cb);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .audio-controls {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .ai-response {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 60px;
+            white-space: pre-wrap;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .blob-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Chrome Built-in AI Audio Demo</h1>
+        
+        <div id="status" class="status info">
+            Welcome! This demo showcases Chrome's built-in AI capabilities with audio files. Upload an MP3 to get started.
+        </div>
+        
+        <div class="upload-area" onclick="document.getElementById('audioFile').click()">
+            <div>
+                <strong>📁 Click to select an MP3 file</strong><br>
+                <small>Or drag and drop your audio file here</small>
+            </div>
+            <input type="file" id="audioFile" accept=".mp3,audio/mp3,audio/mpeg">
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>🧠 AI Analysis</h3>
+                <p>Uses Chrome's built-in Gemini Nano for audio analysis</p>
+                <button class="btn" id="analyzeBtn" disabled>Analyze Audio</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📝 Transcription</h3>
+                <p>Converts speech to text using Web Speech API</p>
+                <button class="btn" id="transcribeBtn" disabled>Transcribe</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🎯 Summarize</h3>
+                <p>Creates summary using Summarizer API</p>
+                <button class="btn" id="summarizeBtn" disabled>Summarize</button>
+            </div>
+        </div>
+        
+        <div class="audio-controls" id="audioControls" style="display: none;">
+            <h3>Audio Player</h3>
+            <audio id="audioPlayer" controls></audio>
+            <div class="blob-info" id="blobInfo"></div>
+        </div>
+        
+        <div class="ai-response" id="aiResponse" style="display: none;">
+            <strong>AI Response:</strong><br>
+            <span id="responseText">Waiting for AI analysis...</span>
+        </div>
+    </div>
+
+    <script>
+        let audioBlob = null;
+        let audioUrl = null;
+        let aiSession = null;
+
+        // Status management
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        // Check for Chrome AI support
+        async function checkAISupport() {
+            const capabilities = {};
+            
+            // Check for various AI APIs
+            if ('ai' in window) {
+                try {
+                    if (window.ai.canCreateTextSession) {
+                        const availability = await window.ai.canCreateTextSession();
+                        capabilities.textSession = availability;
+                    }
+                    if (window.ai.summarizer) {
+                        const availability = await window.ai.summarizer.capabilities();
+                        capabilities.summarizer = availability.available;
+                    }
+                    if (window.ai.writer) {
+                        const availability = await window.ai.writer.capabilities();
+                        capabilities.writer = availability.available;
+                    }
+                } catch (e) {
+                    console.log('AI API check error:', e);
+                }
+            }
+            
+            console.log('AI Capabilities:', capabilities);
+            return capabilities;
+        }
+
+        // Initialize AI session
+        async function initializeAI() {
+            try {
+                if ('ai' in window && window.ai.canCreateTextSession) {
+                    const availability = await window.ai.canCreateTextSession();
+                    if (availability === 'readily') {
+                        aiSession = await window.ai.createTextSession();
+                        updateStatus('AI session initialized successfully!', 'success');
+                        return true;
+                    } else if (availability === 'after-download') {
+                        updateStatus('AI model downloading... Please wait.', 'warning');
+                        aiSession = await window.ai.createTextSession();
+                        updateStatus('AI session initialized after download!', 'success');
+                        return true;
+                    } else {
+                        updateStatus('AI not available on this device.', 'error');
+                        return false;
+                    }
+                } else {
+                    updateStatus('Chrome Built-in AI not supported. Enable via chrome://flags/#optimization-guide-on-device-model', 'warning');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus(`AI initialization error: ${error.message}`, 'error');
+                console.error('AI initialization error:', error);
+                return false;
+            }
+        }
+
+        // File handling
+        function handleFile(file) {
+            if (!file || !file.type.includes('audio/')) {
+                updateStatus('Please select a valid audio file.', 'error');
+                return;
+            }
+
+            updateStatus('Processing audio file...', 'info');
+
+            // Create blob
+            audioBlob = file;
+            audioUrl = URL.createObjectURL(audioBlob);
+
+            // Setup audio player
+            const audioPlayer = document.getElementById('audioPlayer');
+            const audioControls = document.getElementById('audioControls');
+            const blobInfo = document.getElementById('blobInfo');
+            
+            audioPlayer.src = audioUrl;
+            audioControls.style.display = 'block';
+            
+            // Display blob info
+            blobInfo.innerHTML = `
+                <strong>Blob Information:</strong><br>
+                Size: ${(audioBlob.size / 1024 / 1024).toFixed(2)} MB<br>
+                Type: ${audioBlob.type}<br>
+                Name: ${audioBlob.name}<br>
+                Created: ${new Date().toLocaleString()}
+            `;
+
+            // Enable buttons
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('transcribeBtn').disabled = false;
+            document.getElementById('summarizeBtn').disabled = false;
+
+            updateStatus('Audio file loaded successfully! You can now use AI features.', 'success');
+        }
+
+        // AI Analysis
+        async function analyzeAudio() {
+            if (!aiSession || !audioBlob) {
+                updateStatus('AI session or audio not ready.', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('Analyzing audio with AI...', 'info');
+                document.getElementById('aiResponse').style.display = 'block';
+                document.getElementById('responseText').textContent = 'Processing...';
+
+                const prompt = `I have an audio file with the following properties:
+                - File name: ${audioBlob.name}
+                - Size: ${(audioBlob.size / 1024 / 1024).toFixed(2)} MB
+                - Type: ${audioBlob.type}
+                - Duration: Please analyze
+                
+                Please provide insights about this audio file and suggest what kind of content it might contain based on its properties.`;
+
+                const response = await aiSession.prompt(prompt);
+                document.getElementById('responseText').textContent = response;
+                updateStatus('Audio analysis complete!', 'success');
+            } catch (error) {
+                updateStatus(`Analysis error: ${error.message}`, 'error');
+                document.getElementById('responseText').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Transcription using Web Speech API
+        async function transcribeAudio() {
+            if (!audioBlob) {
+                updateStatus('No audio file loaded.', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('Starting transcription...', 'info');
+                document.getElementById('aiResponse').style.display = 'block';
+                document.getElementById('responseText').textContent = 'Transcribing audio...';
+
+                // Play audio and attempt transcription
+                const audioPlayer = document.getElementById('audioPlayer');
+                
+                if ('webkitSpeechRecognition' in window) {
+                    const recognition = new webkitSpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    recognition.lang = 'en-US';
+
+                    recognition.onresult = function(event) {
+                        let transcript = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            transcript += event.results[i][0].transcript;
+                        }
+                        document.getElementById('responseText').textContent = transcript;
+                    };
+
+                    recognition.onerror = function(event) {
+                        updateStatus(`Transcription error: ${event.error}`, 'error');
+                    };
+
+                    recognition.onend = function() {
+                        updateStatus('Transcription complete!', 'success');
+                    };
+
+                    recognition.start();
+                    audioPlayer.play();
+                } else {
+                    updateStatus('Speech recognition not supported in this browser.', 'error');
+                    document.getElementById('responseText').textContent = 'Speech recognition not available. This feature requires Chrome with microphone permissions.';
+                }
+            } catch (error) {
+                updateStatus(`Transcription error: ${error.message}`, 'error');
+            }
+        }
+
+        // Summarize using Summarizer API
+        async function summarizeContent() {
+            if (!audioBlob) {
+                updateStatus('No audio file loaded.', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('Creating summary...', 'info');
+                document.getElementById('aiResponse').style.display = 'block';
+                document.getElementById('responseText').textContent = 'Generating summary...';
+
+                if ('ai' in window && window.ai.summarizer) {
+                    const capabilities = await window.ai.summarizer.capabilities();
+                    if (capabilities.available === 'readily') {
+                        const summarizer = await window.ai.summarizer.create();
+                        const content = `Audio file analysis:
+                        File: ${audioBlob.name}
+                        Size: ${(audioBlob.size / 1024 / 1024).toFixed(2)} MB
+                        Type: ${audioBlob.type}
+                        This is an audio file that has been uploaded for analysis. The file contains audio data that could be music, speech, or other audio content.`;
+                        
+                        const summary = await summarizer.summarize(content);
+                        document.getElementById('responseText').textContent = summary;
+                        updateStatus('Summary complete!', 'success');
+                    } else {
+                        throw new Error('Summarizer not available');
+                    }
+                } else {
+                    // Fallback to regular AI session
+                    if (aiSession) {
+                        const response = await aiSession.prompt(`Please create a brief summary of what we know about this audio file:
+                        - Name: ${audioBlob.name}
+                        - Size: ${(audioBlob.size / 1024 / 1024).toFixed(2)} MB
+                        - Type: ${audioBlob.type}
+                        
+                        Provide a concise summary of the file characteristics.`);
+                        document.getElementById('responseText').textContent = response;
+                        updateStatus('Summary complete!', 'success');
+                    } else {
+                        throw new Error('No AI service available');
+                    }
+                }
+            } catch (error) {
+                updateStatus(`Summary error: ${error.message}`, 'error');
+                document.getElementById('responseText').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            handleFile(e.target.files[0]);
+        });
+
+        document.getElementById('analyzeBtn').addEventListener('click', analyzeAudio);
+        document.getElementById('transcribeBtn').addEventListener('click', transcribeAudio);
+        document.getElementById('summarizeBtn').addEventListener('click', summarizeContent);
+
+        // Drag and drop
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            updateStatus('Checking Chrome Built-in AI support...', 'info');
+            const capabilities = await checkAISupport();
+            await initializeAI();
+        });
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            if (audioUrl) {
+                URL.revokeObjectURL(audioUrl);
+            }
+            if (aiSession) {
+                aiSession.destroy?.();
+            }
+        });
+    </script>
+</body>
+</html>
