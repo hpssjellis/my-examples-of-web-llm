@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>AI Text Generation</h1>
+
+<label for="myPrompt">Enter your prompt:</label>
+<br>
+<textarea id="myPrompt" rows="4" cols="50">Write a haiku about the forest in autumn.</textarea>
+<br>
+<button onclick="myGenerateText()">Generate Text</button>
+
+<hr>
+
+<h2>Output</h2>
+<div id="myOutput"></div>
+
+<script type="module">
+  async function myGenerateText() {
+    const myPromptText = document.getElementById("myPrompt").value;
+    const myOutputDiv = document.getElementById("myOutput");
+    myOutputDiv.textContent = "Generating...";
+
+    try {
+      // The `topK` parameter is set during session creation.
+      // It limits the model to choosing from the top K most likely words.
+      // A smaller number makes the output more focused; a larger number allows more creativity.
+      const mySession = await LanguageModel.create({
+        topK: 10, // Example: only consider the 10 most likely next words at each step.
+        expectedInputs: [{ type: 'text' }],
+        expectedOutputs: [{ type: 'text' }],
+      });
+
+      const myStream = await mySession.promptStreaming({
+        role: "user",
+        content: myPromptText
+      });
+
+      myOutputDiv.textContent = ""; // Clear "Generating..." text
+      for await (const myChunk of myStream) {
+        myOutputDiv.append(myChunk);
+      }
+    } catch (myError) {
+      myOutputDiv.textContent = `Error: ${myError.message}`;
+      console.error(myError);
+    }
+  }
+</script>
+
+</body>
+</html>
