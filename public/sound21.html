@@ -8,6 +8,7 @@
     output.textContent = '';
     const session = await LanguageModel.create({
       topK: 3, // Example: only consider the 3 most likely next words at each step.
+      temperature: 0.0, // Added the temperature parameter to fix the error.
       expectedInputs: [{ type: 'audio' }, { type: 'text', languages: ['en'] }],
       expectedOutputs: [{ type: 'text', languages: ['en'] }],
     });
