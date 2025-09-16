@@ -294,6 +294,7 @@ or write your own HTML and view it"></textarea>
             let myDefaultText = '';
             let myIsStreaming = false;
             let myUsesProofreader = false;
+            myExecutePromptBtn.style.backgroundColor = 'lime';   
             if (myJsonOutputCheckbox.checked && !myJsonInputCheckbox.checked) {
               myDefaultText = 'Use JSON for the output format. '
             }
@@ -540,8 +541,7 @@ or write your own HTML and view it"></textarea>
             if (!myProofreaderSession) {
                 myCreateProofreaderSessionBtn.disabled = false;
             }
-            myExecutePromptBtn.disabled = false;
-            myExecutePromptBtn.style.backgroundColor = 'lime';       
+            myExecutePromptBtn.disabled = false;    
             myEnablePromptButtons();
             myViewHtmlBtn.disabled = false;
             myRenderHtmlBtn.disabled = false;
