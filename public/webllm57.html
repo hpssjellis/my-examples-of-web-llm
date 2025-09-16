@@ -66,7 +66,7 @@
               <label for="myJsonInputCheckbox">JSON Input</label>, 
               <input type="checkbox" id="myJsonOutputCheckbox">  
               <label for="myJsonOutputCheckbox">JSON Output</label>,  
-              <button id="myExecutePromptBtn" style="background-Color:lime;" onclick="myExecutePrompt()" disabled>Execute Prompt</button>
+              <button id="myExecutePromptBtn" onclick="myExecutePrompt()" disabled>Execute Prompt</button>
             </div>
 
         <h3>Output:</h3> 
@@ -541,6 +541,7 @@ or write your own HTML and view it"></textarea>
                 myCreateProofreaderSessionBtn.disabled = false;
             }
             myExecutePromptBtn.disabled = false;
+            myExecutePromptBtn.style.backgroundColor = 'lime';       
             myEnablePromptButtons();
             myViewHtmlBtn.disabled = false;
             myRenderHtmlBtn.disabled = false;
@@ -585,7 +586,7 @@ or write your own HTML and view it"></textarea>
             await myCheckAvailability('proofreader');
             myDisablePromptButtons();
             myExecutePromptBtn.disabled = true;
-            myExecutePromptBtn.style.backgroundColor = 'gray';            
+            myExecutePromptBtn.style.backgroundColor = 'lightgray';            
             myViewHtmlBtn.disabled = true;
             myRenderHtmlBtn.disabled = false;
             myCopyHtmlBtn.disabled = true;
