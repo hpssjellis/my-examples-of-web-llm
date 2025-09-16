@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🎙️ On-Device MP3 Transcriber (Chrome AI)</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
+    input, button { margin-top: 1em; }
+    #output { margin-top: 2em; white-space: pre-wrap; background: #f0f0f0; padding: 1em; border-radius: 5px; }
+    .note { font-size: 0.9em; color: #555; margin-top: 2em; background: #fffbe6; padding: 1em; border-left: 4px solid #f0c000; }
+  </style>
+</head>
+<body>
+  <h2>🎙️ On-Device MP3 Transcriber</h2>
+  <p>Select an MP3 file to transcribe using Chrome’s built-in AI (no server, no API key).</p>
+  <input type="file" id="audioInput" accept=".mp3" />
+  <button onclick="transcribe()">Transcribe</button>
+  <div id="output">Transcribed text will appear here...</div>
+
+  <div class="note">
+    <strong>⚙️ Required Chrome Canary Flags:</strong><br>
+    To use this page, enable the following flags in <code>chrome://flags</code>:
+    <ul>
+      <li><code>#prompt-api-for-gemini-nano</code> → <strong>Enabled</strong></li>
+      <li><code>#optimization-guide-on-device-model</code> → <strong>Enabled</strong></li>
+    </ul>
+    After enabling, restart Chrome and visit <code>chrome://components</code> to update the model.
+  </div>
+
+  <script>
+    async function transcribe() {
+      const fileInput = document.getElementById('audioInput');
+      const output = document.getElementById('output');
+
+      if (!fileInput.files.length) {
+        output.textContent = 'Please select an MP3 file.';
+        return;
+      }
+
+      const audioBlob = fileInput.files[0];
+      output.textContent = 'Transcribing using on-device AI...';
+
+      try {
+        const model = await navigator.languageModel.getModel();
+        const result = await model.prompt({
+          input: audioBlob,
+          task: "transcribe-audio"
+        });
+
+        output.textContent = result.text || 'No text returned.';
+      } catch (err) {
+        output.textContent = 'Error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
