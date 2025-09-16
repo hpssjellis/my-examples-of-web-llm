@@ -6,7 +6,35 @@
     <title>Media Description with Chrome Built-in API</title>
 </head>
 <body>
-    <h1>Chrome Built-In API Media Description</h1>
+    <h1>Chrome Built-In Multimodal image and sound input</h1>
+
+      <details open>   <!--  You could use local storage to hide this after the first use. I did not want to make the page extra confusing -->
+            <summary>Help to setup Chrome flags if needed</summary>
+        <p>
+            This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
+            Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome address bar:
+            <input type="text" id="flagsLink" class="copy-input" size="60" value="chrome://flags#optimization-guide-on-device-model" readonly>
+            <button class="copy-button" onclick="copyFlagsLink()">Copy - tab</button><br>
+            Then set <code>#optimization-guide-on-device-model</code> (to Enabled BypassPrefRequirement)<br>
+
+            Then search for <input type="text" size="15" value="gemini-nano"> and set all of them to enabled:
+        </p>
+        <p>
+            <ol>
+                <li><code>#prompt-api-for-gemini-nano</code> (set to Enabled)</li>
+                <li><code>#prompt-api-for-gemini-nano-multimodal-input</code>(set to Enabled) </li>
+                <li><code>#summarization-api-for-gemini-nano</code>(set to Enabled) </li>
+                <li><code>#writer-api-for-gemini-nano</code>(set to Enabled) </li>
+                <li><code>#rewriter-api-for-gemini-nano</code>(set to Enabled) </li>
+                <li><code>#proofreader-api-for-gemini-nano</code>(set to Enabled) </li>
+            </ol>
+            The Gemini Nano model will download the first time you use it. That will be about 4.0 GB of download and will need
+            about 20 GB saving space for the final folders. <br><br>
+            Note: User Ctrl-Shift-i to show comments
+
+        
+        </p>
+        </details>
     <p>Select an image or audio file, or use your webcam/mic to capture media, to describe it using the Language Model API.</p>
 
     <h3>Image Input</h3>
