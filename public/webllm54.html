@@ -159,7 +159,7 @@
         </details>
 
         
-        <div>
+
             <!-- Buttons for LanguageModel -->
             <button onclick="checkAvailability('languageModel')">Check LLM API Availability</button>
             <button onclick="getParams()">Get Model Parameters</button>
@@ -179,9 +179,9 @@
                 <button id="prepRewriteBtn" onclick="preparePrompt('rewrite')">Prepare Rewrite Text</button>
                 <button id="prepProofreadBtn" onclick="preparePrompt('proofread')">Prepare Proofread Text</button>
             </div>
-            <hr>
+
             <h3>Edit Prompt:</h3>
-            <textarea id="promptInput" rows="5" cols="80" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
+            <textarea id="promptInput" rows="3" cols="80" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
             <div>
               <input type="checkbox" id="jsonInputCheckbox">
               <label for="jsonInputCheckbox">JSON Input</label>, 
@@ -189,10 +189,10 @@
               <label for="jsonOutputCheckbox">JSON Output</label>,  
               <button id="executePromptBtn" onclick="executePrompt()" disabled>Execute Prompt</button>
             </div>
-        </div>
+
         <h2>Output:</h2>
         <div id="timerDisplay"></div>
-        <textarea id="output" rows="10" readonly>No output yet. Click a button to begin.</textarea>
+        <textarea id="output" rows="5" readonly>No output yet. Click a button to begin.</textarea>
 
         <!-- New section for HTML preview and viewer -->
         <h3>HTML Code Preview and Viewer</h3>
