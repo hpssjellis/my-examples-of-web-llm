@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MP3 → Prompt API (audio → text)</title>
+</head>
+<body style="font-family:system-ui, -apple-system, Roboto, 'Segoe UI', Arial; max-width:900px; margin:24px;">
+  <h2 style="margin:0 0 8px 0;">MP3 → Chrome Prompt API transcription demo</h2>
+  <p style="margin:0 0 12px 0; color:#333;">
+    Pick an MP3 file and click <strong>Transcribe MP3</strong>. This uses Chrome's built-in Prompt API
+    (multimodal audio) to return text. Works only in Chrome builds that expose the Prompt API (e.g.
+    recent Canary / Origin Trial / EPP builds). See console for detailed logs.
+  </p>
+
+  <!-- file picker -->
+  <input id="myFileInput" type="file" accept="audio/*" style="display:block;margin:12px 0;" />
+
+  <!-- transcription button -->
+  <input type="button" value="Transcribe MP3" onclick="myTranscribe()" style="padding:8px 12px; font-size:14px;" />
+
+  <!-- simple controls / status -->
+  <div id="myStatus" style="margin-top:12px; color:#0366d6;">Status: idle</div>
+
+  <!-- output area -->
+  <pre id="myOutput" style="white-space:pre-wrap; background:#f6f8fa; padding:12px; border-radius:6px; margin-top:12px; min-height:120px;"></pre>
+
+<script>
+  // All custom names start with "my" as requested.
+
+  async function myTranscribe() {
+    const myStatus = document.getElementById('myStatus');
+    const myOutput = document.getElementById('myOutput');
+    myOutput.textContent = '';
+    myStatus.textContent = 'Status: checking API availability...';
+
+    // Basic availability check
+    if (!('LanguageModel' in window)) {
+      myStatus.textContent = 'Status: Prompt API (LanguageModel) not available in this browser.';
+      console.error('LanguageModel not found on window. You need a Chrome build with the Prompt API.');
+      return;
+    }
+
+    try {
+      const myAvailability = await LanguageModel.availability();
+      myStatus.textContent = `Status: model availability = ${myAvailability}`;
+
+      if (myAvailability === 'unavailable') {
+        myStatus.textContent = 'Status: model unavailable on this device/browser.';
+        return;
+      }
+
+      // Get the selected file
+      const myFileInput = document.getElementById('myFileInput');
+      if (!myFileInput.files || myFileInput.files.length === 0) {
+        myStatus.textContent = 'Status: please choose an MP3 (or other audio) file first.';
+        return;
+      }
+      const myAudioFile = myFileInput.files[0]; // File is a Blob already
+
+      // Create session. Do NOT pass topK/temperature only one of them — the API requires both or neither.
+      myStatus.textContent = 'Status: creating language model session (may trigger model download)...';
+
+      // Use expectedInputs to indicate we're sending audio
+      const mySession = await LanguageModel.create({
+        expectedInputs: [{ type: 'audio' }]
+      });
+
+      myStatus.textContent = 'Status: session created. Sending audio to model...';
+
+      // Compose a prompt that asks for transcription.
+      // We pass a 'user' message whose content is an array of mixed types:
+      // first a text instruction, then the audio blob itself.
+      const myPromptContent = [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', value: 'Transcribe the audio spoken content to plain text. Provide a clean transcript.' },
+            { type: 'audio', value: myAudioFile }
+          ]
+        }
+      ];
+
+      // Call prompt() and wait for the full response text
+      const myResponse = await mySession.prompt(myPromptContent);
+      myStatus.textContent = 'Status: transcription received.';
+      myOutput.textContent = myResponse;
+
+      // Optionally: close/destroy the session if you want to free resources.
+      if (typeof mySession.destroy === 'function') {
+        try { mySession.destroy(); } catch (e) { /* ignore */ }
+      }
+    } catch (myErr) {
+      console.error('Transcription error:', myErr);
+      // Helpful error messages for common issues:
+      if (myErr && myErr.message && myErr.message.includes('download')) {
+        myStatus.textContent = 'Status: model download in progress or failed. Check console and storage space.';
+      } else {
+        myStatus.textContent = 'Status: error — see console for details.';
+      }
+      myOutput.textContent = myErr && myErr.toString ? myErr.toString() : JSON.stringify(myErr);
+    }
+  }
+</script>
+</body>
+</html>
