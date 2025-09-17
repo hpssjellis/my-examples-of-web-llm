@@ -313,7 +313,7 @@
                 /**
          * Function to copy the chrome://flags link to the clipboard and open a new tab.
          */
-        function window.copyFlagsLink = async () => {
+       window.copyFlagsLink = async () => {
             const flagsInput = document.getElementById('flagsLink');
             flagsInput.select();
             flagsInput.setSelectionRange(0, 99999);
