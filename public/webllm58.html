@@ -355,7 +355,109 @@ or write your own HTML and view it"></textarea>
         /**
          * Executes the prompt based on the current text in the textarea and the selected mode.
          */
+async function myExecutePrompt() {
+            // New logic to handle UI cleanup immediately upon stop request
+            if (myAbortController) {
+                myDisplayOutput("Prompt generation was stopped by the user.", "info", true);
+                myAbortController.abort();
+                
+                // My new code to reset the UI immediately
+                clearInterval(myTimerInterval);
+                myEnableAllButtons();
+                myExecutePromptBtn.textContent = 'Execute Prompt';
+                myAbortController = null;
+                return;
+            }
 
+            if (myCurrentPromptMode.usesProofreader && !myProofreaderSession) {
+                myDisplayOutput('Please create a Proofreader session first!', 'error', true);
+                return;
+            }
+            if (!myCurrentPromptMode.usesProofreader && !myLanguageModelSession) {
+                myDisplayOutput('Please create a Language Model session first!', 'error', true);
+                return;
+            }
+            if (!myCurrentPromptMode.type) {
+                myDisplayOutput('Please prepare a prompt first.', 'error', true);
+                return;
+            }
+
+            const myPromptText = myPromptInput.value;
+            if (!myPromptText.trim()) {
+                myDisplayOutput('Prompt text cannot be empty!', 'error', true);
+                return;
+            }
+            
+            myStartTime = Date.now();
+            myLastGeneratedText = '';
+            myTimerDisplay.textContent = `Thinking... 0.00s`;
+            myTimerInterval = setInterval(myUpdateTimerDisplay, 100);
+            myOutputDiv.value = '';
+            myHtmlCodePreview.value = ''; // Clear the HTML preview box
+
+            myDisableAllButtons();
+            myExecutePromptBtn.textContent = 'Stop';
+            myExecutePromptBtn.disabled = false;
+
+            // My new code to create the AbortController and pass its signal
+            myAbortController = new AbortController();
+
+            try {
+                if (myCurrentPromptMode.usesProofreader) {
+                    const myCorrections = await myProofreaderSession.proofread(myPromptText, { signal: myAbortController.signal });
+                    // Only display the corrected text directly
+                    if (myCorrections && typeof myCorrections.correctedInput === 'string') {
+                        myLastGeneratedText = myCorrections.correctedInput;
+                        myOutputDiv.value = myLastGeneratedText;
+                    } else {
+                        myOutputDiv.value = `No corrections were returned.`;
+                        console.log('Proofreader API response:', myCorrections);
+                    }
+                } else if (myCurrentPromptMode.isStreaming) {
+                    const myStream = await myLanguageModelSession.promptStreaming(myPromptText, { signal: myAbortController.signal });
+                    for await (const myChunk of myStream) {
+                        myLastGeneratedText += myChunk;
+                        myOutputDiv.value = myLastGeneratedText;
+                        myOutputDiv.scrollTop = myOutputDiv.scrollHeight;
+                    }
+                } else {
+                    const myResult = await myLanguageModelSession.prompt(myPromptText, { signal: myAbortController.signal });
+                    myLastGeneratedText = myResult;
+                    myOutputDiv.value = myResult;
+                }
+
+            } catch (myError) {
+                // This catch block will now only handle actual errors, not user aborts
+                if (myError.name === 'AbortError') {
+                    // This is a redundant check, but useful for debugging
+                    myDisplayOutput("Prompt generation was successfully aborted.", "info", true);
+                } else {
+                    myDisplayOutput(`Error executing prompt: ${myError.message}`, 'error', true);
+                    console.error('Error executing prompt:', myError);
+                    myLastGeneratedText = '';
+                }
+            } finally {
+                // The timer cleanup logic for successful completion remains here
+                clearInterval(myTimerInterval);
+                const myEndTime = Date.now();
+                const myDurationSeconds = (myEndTime - myStartTime) / 1000;
+                const myCharCount = myLastGeneratedText.length;
+                const myWordCount = myLastGeneratedText.split(/\s+/).filter(myWord => myWord.length > 0).length;
+                const myCharsPerSecond = myDurationSeconds > 0 ? (myCharCount / myDurationSeconds).toFixed(2) : '0.00';
+                const myWordsPerSecond = myDurationSeconds > 0 ? (myWordCount / myDurationSeconds).toFixed(2) : '0.00';
+
+                myTimerDisplay.innerHTML =
+                    `Completed in ${myDurationSeconds.toFixed(2)}s<br>` +
+                    `Chars: ${myCharCount} (${myCharsPerSecond}/s)<br>` +
+                    `Words: ${myWordsPerSecond}/s)`;
+
+                myEnableAllButtons();
+                myExecutePromptBtn.textContent = 'Execute Prompt'; // Restore button text
+                myAbortController = null; // My new code to clear the controller
+            }
+        }
+
+        /*
 async function myExecutePrompt() {
             // My new code to check for an active stream and abort it.
             if (myAbortController) {
@@ -455,6 +557,8 @@ async function myExecutePrompt() {
                 myAbortController = null; // My new code to clear the controller
             }
         }
+
+        */
 
         /*
 async function myExecutePrompt() {
