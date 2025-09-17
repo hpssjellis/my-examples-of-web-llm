@@ -90,6 +90,20 @@
         let myMediaRecorder = null;
         let myAudioChunks = [];
 
+                /**
+         * Function to copy the chrome://flags link to the clipboard and open a new tab.
+         */
+        function copyFlagsLink() {
+            const flagsInput = document.getElementById('flagsLink');
+            flagsInput.select();
+            flagsInput.setSelectionRange(0, 99999);
+
+            document.execCommand('copy');
+            window.open('about:blank', '_blank');
+
+            displayOutput('Copied "chrome://flags" to clipboard and opened a new tab!', 'info', true);
+        }
+
         // Image file selection handler
         myImageInput.onchange = async (event) => {
             const myFile = event.target.files[0];
