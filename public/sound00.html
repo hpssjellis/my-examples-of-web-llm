@@ -16,7 +16,7 @@
         <p>
             This page demonstrates the core features of the Gemini Nano Prompt API (`LanguageModel` API) available in Chrome 138+.
             Ensure you have enabled the necessary flags. Copy the link below and paste it into your Chrome address bar:
-            <input type="text" id="flagsLink" class="copy-input" size="60" value="chrome://flags#optimization-guide-on-device-model" readonly>
+            <input type="text" id="flagsLink" class="copy-input" size="45" value="chrome://flags#optimization-guide-on-device-model" readonly>
             <button class="copy-button" onclick="copyFlagsLink()">Copy - tab</button><br>
             Then set <code>#optimization-guide-on-device-model</code> (to Enabled BypassPrefRequirement)<br>
 
@@ -63,6 +63,9 @@
     <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
     <video id="myWebcamPreview" style="display: none; max-width: 100%; height: auto;"></video>
     <canvas id="myCanvas" style="display: none;"></canvas>
+    <br>
+    <hr>
+    <br>
 
     <script type="module">
         // Element variables
@@ -89,6 +92,8 @@
         let myTimeoutId = null;
         let myMediaRecorder = null;
         let myAudioChunks = [];
+
+
 
         // Image file selection handler
         myImageInput.onchange = async (event) => {
@@ -306,6 +311,23 @@
                 myStopButton.style.display = 'none';
             }
         };
+
+
+                /**
+         * Function to copy the chrome://flags link to the clipboard and open a new tab.
+         */
+       window.copyFlagsLink = async () => {
+            const flagsInput = document.getElementById('flagsLink');
+            flagsInput.select();
+            flagsInput.setSelectionRange(0, 99999);
+
+            document.execCommand('copy');
+            window.open('about:blank', '_blank');
+
+           // myStatus.textContent =`Copied "chrome://flags" to clipboard and opened a new tab!`;
+        }
+
+        
     </script>
 </body>
 </html>
