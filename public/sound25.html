@@ -90,19 +90,7 @@
         let myMediaRecorder = null;
         let myAudioChunks = [];
 
-                /**
-         * Function to copy the chrome://flags link to the clipboard and open a new tab.
-         */
-        function window.copyFlagsLink() {
-            const flagsInput = document.getElementById('flagsLink');
-            flagsInput.select();
-            flagsInput.setSelectionRange(0, 99999);
 
-            document.execCommand('copy');
-            window.open('about:blank', '_blank');
-
-            myStatus.textContent =`Copied "chrome://flags" to clipboard and opened a new tab!`;
-        }
 
         // Image file selection handler
         myImageInput.onchange = async (event) => {
@@ -320,6 +308,23 @@
                 myStopButton.style.display = 'none';
             }
         };
+
+
+                /**
+         * Function to copy the chrome://flags link to the clipboard and open a new tab.
+         */
+        function window.copyFlagsLink = async () => {
+            const flagsInput = document.getElementById('flagsLink');
+            flagsInput.select();
+            flagsInput.setSelectionRange(0, 99999);
+
+            document.execCommand('copy');
+            window.open('about:blank', '_blank');
+
+           // myStatus.textContent =`Copied "chrome://flags" to clipboard and opened a new tab!`;
+        }
+
+        
     </script>
 </body>
 </html>
