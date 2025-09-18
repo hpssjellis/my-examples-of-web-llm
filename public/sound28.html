@@ -344,10 +344,10 @@
                 // Log when the description is finished
                 console.log('Description finished. Output is now on the page.');
 
-                console.log(myOutputText.value)
-                let myString = myOutputText.value;
-                myRegex = /(?:##\s*Transcription\s*of\s*Audio:\s*")(.+)(?:".*)/;
-                myResult = myString.replace(myRegex, "$1");
+                console.log(myOutputText)
+                let myString = myOutputText;
+               let myRegex = /(?:##\s*Transcription\s*of\s*Audio:\s*")(.+)(?:".*)/;
+              let  myResult = myString.replace(myRegex, "$1");
                 
                 console.log(myResult);
 
