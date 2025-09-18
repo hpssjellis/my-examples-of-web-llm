@@ -61,7 +61,80 @@
 
             <h3>Edit Prompt:</h3>
              <div id="myMultiDiv" style="display:none">
-                  ajlsdf jhasdjf kja df asdh fkj ad kfh aksdfj akjs dhfk a
+
+
+    <p>Select an image or audio file, or use your webcam/mic to capture media, to describe it using the Language Model API.</p>
+
+    <h3>Image Input</h3>
+    <input type="file" id="myImageInput" accept="image/*" />
+    <button onclick="myStartWebcam()">Start Webcam</button>
+    <button id="myCaptureImageButton" onclick="myCaptureImage()" style="display: none;">Capture Image</button>
+
+    <h3>Audio Input</h3>
+    <input type="file" id="myAudioInput" accept="audio/*" />
+    <button id="myStartRecordingButton" onclick="myStartAudioRecording()">Start Mic Recording</button>
+    <button id="myStopRecordingButton" onclick="myStopAudioRecording()" style="display: none;">Stop Mic Recording</button>
+    <audio id="myAudioPreview" controls style="display: none;"></audio>
+
+    <hr>
+
+    <button id="myDescribeButton" onclick="myStartDescription()">Describe Media</button>
+    <button id="myStopButton" onclick="myStopDescription()" style="display: none;">Stop Description</button>
+
+    <div id="myStatus">Status here</div>
+    <h2>Description:</h2>
+    <p id="myOutputText"></p>
+
+    <img id="myImagePreview" alt="Image Preview" style="display: none; max-width: 100%; height: auto;" />
+    <video id="myWebcamPreview" style="display: none; max-width: 100%; height: auto;"></video>
+    <canvas id="myCanvas" style="display: none;"></canvas>
+    <br>
+    <hr>
+    <br>
+
+    <h3>Chrome AI Translator</h3>
+
+  <p>
+    Source: 
+    <select id="mySourceLang">
+      <option value="it">Italian</option>
+      <option value="en"  selected>English</option>
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+      <option value="pt">Portuguese</option>
+    </select>
+    → Target: 
+    <select id="myTargetLang">
+      <option value="en">English</option>
+      <option value="it">Italian</option>
+      <option value="fr"  selected>French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+      <option value="pt">Portuguese</option>
+    </select>
+  </p>
+
+  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Oggi è davvero una bella giornata</textarea><br>
+
+  <input type="button" value="Translate" onclick="myHandleTranslateClick()">
+  <input type="button" value="Release Translator" onclick="myReleaseTranslator()">
+
+  <p><b>Status:</b></p>
+  <div id="myStatus" style="white-space:pre-wrap;"></div>
+
+  <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
+<div>
+        <label for="myVoiceSelect">Choose a voice:</label>
+        <select id="myVoiceSelect"></select>
+    </div>
+    <br>
+    
+    <button id="mySpeakButton">Speak Text</button>
+    
+    <p id="myStatusMessage"></p>
+
+
              </div>    
             <textarea id="myPromptInput" rows="4" cols="120" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
             <div>
