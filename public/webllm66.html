@@ -787,6 +787,7 @@ or write your own HTML and view it"></textarea>
         let myTimeoutId = null;
         let myMediaRecorder = null;
         let myAudioChunks = [];
+       // let myMaxMilliSec = 30000;
         // Image file selection handler
         myImageInput.onchange = async (event) => {
             const myFile = event.target.files[0];
@@ -926,11 +927,15 @@ or write your own HTML and view it"></textarea>
                 mySeconds++;
                 myOutputText.textContent = `Model is being downloaded... ${mySeconds} seconds`;
             }, 1000);
+
+            /*
             myTimeoutId = setTimeout(() => {
                 if (myAbortController) {
                     myAbortController.abort();
                 }
-            }, 30000); // 30 second timeout
+            }, 300000); // 30 second timeout
+
+            */
             try {
                 const myExpectedInputs = myImageBlob ? [{
                     type: 'image'
