@@ -267,11 +267,9 @@
                 console.log(myContentType);
                 console.log('myContentValue');
                 console.log(myContentValue);
-
+                let myPromptValue = `Transcribe this ${myContentType} as completely as you can and after that describe it`;    // default sound
                 if (myContentType === 'image' ){
-                  const myPromptValue = `Describe this ${myContentType} as completely as you can`;
-                } else {
-                  const myPromptValue = `Transcribe this ${myContentType} as completely as you can`;                
+                   myPromptValue = `Describe this ${myContentType} as completely as you can`;   // switch for image
                 }
                 
 
