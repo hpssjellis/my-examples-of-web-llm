@@ -60,7 +60,14 @@
             </div>
 
             <h3>Edit Prompt:</h3>
-             <div id="myMultiDiv" style="display:none">
+
+
+
+
+
+
+        
+<div id="myMultiDiv" style="display:none">
 
 
     <p>Select an image or audio file, or use your webcam/mic to capture media, to describe it using the Language Model API.</p>
@@ -135,7 +142,14 @@
     <p id="myStatusMessage"></p>
 
 
-             </div>    
+</div>  
+
+
+
+
+        
+<div id="myMainResponseArea">  
+
             <textarea id="myPromptInput" rows="4" cols="120" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
             <div>
               <input type="checkbox" id="myJsonInputCheckbox">
@@ -159,6 +173,8 @@
         <textarea id="myHtmlCodePreview"  rows="4" cols="120" placeholder="The HTML code will appear here after clicking 'View HTML to Edit'.
 or write your own HTML and view it"></textarea>
         <!-- End of new section -->
+
+        </div>
 
     </div>
     <script>
@@ -380,6 +396,8 @@ or write your own HTML and view it"></textarea>
             }
 
             document.getElementById('myMultiDiv').style.display = 'none'  // hide webcam sound translation stuff
+            document.getElementById('myMainResponseArea').style.display = 'block'  
+            
             switch (myType) {
                 case 'simple':
                     myDefaultText += "Write a short, positive affirmation for the day.";
@@ -390,6 +408,7 @@ or write your own HTML and view it"></textarea>
                     break;
                 case 'multimodal':
                     document.getElementById('myMultiDiv').style.display = 'block'
+                    document.getElementById('myMainResponseArea').style.display = 'none'  
                     myDefaultText += "Describe a sunny day at the beach, including the sounds and smells.";
                     break;
                 case 'summarize':
