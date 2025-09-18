@@ -60,9 +60,9 @@
             </div>
 
             <h3>Edit Prompt:</h3>
-        <div id="myMultiDiv">
-   ajlsdf jhasdjf kja df asdh fkj ad kfh aksdfj akjs dhfk a
-        </div>    
+             <div id="myMultiDiv" style="display:none">
+                  ajlsdf jhasdjf kja df asdh fkj ad kfh aksdfj akjs dhfk a
+             </div>    
             <textarea id="myPromptInput" rows="4" cols="120" placeholder="Select a prompt type above to pre-fill, or type your own."></textarea>
             <div>
               <input type="checkbox" id="myJsonInputCheckbox">
@@ -316,7 +316,7 @@ or write your own HTML and view it"></textarea>
                     myIsStreaming = true;
                     break;
                 case 'multimodal':
-                    document.getElementById('myMultiDiv').style.display = 'display'
+                    document.getElementById('myMultiDiv').style.display = 'block'
                     myDefaultText += "Describe a sunny day at the beach, including the sounds and smells.";
                     break;
                 case 'summarize':
