@@ -706,7 +706,7 @@ async function myExecutePrompt() {
 ////////////////////////////// translator scripts /////////////////////////////////////////
 
     let myTranslator = null;
-    let myTimerInterval = null;
+    let myTimerIntervalTranslate = null;
 
     function mySetStatus(msg) {
       const d = document.getElementById('myStatus');
@@ -716,15 +716,15 @@ async function myExecutePrompt() {
     function myStartTimer() {
       let sec = 0;
       mySetStatus("Working... 0s");
-      myTimerInterval = setInterval(() => {
+      myTimerIntervalTranslate = setInterval(() => {
         sec++;
         mySetStatus(`Working... ${sec}s`);
       }, 1000);
     }
 
     function myStopTimer(msg) {
-      if (myTimerInterval) clearInterval(myTimerInterval);
-      myTimerInterval = null;
+      if (myTimerIntervalTranslate) clearInterval(myTimerIntervalTranslate);
+      myTimerIntervalTranslate = null;
       mySetStatus(msg);
     }
 
