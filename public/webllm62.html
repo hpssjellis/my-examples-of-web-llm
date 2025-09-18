@@ -122,7 +122,7 @@
     </select>
   </p>
 
-  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Oggi è davvero una bella giornata</textarea><br>
+  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Hello How are you?</textarea><br>
 
   <input type="button" value="Translate" onclick="myHandleTranslateClick()">
   <input type="button" value="Release Translator" onclick="myReleaseTranslator()">
@@ -970,7 +970,7 @@ async function myExecutePrompt() {
                 myCaptureImageButton.style.display = 'block';
                 myImageInput.style.display = 'none';
                 myImagePreview.style.display = 'none';
-                myAudioInput.style.display = 'none';
+               // myAudioInput.style.display = 'none';
                 myAudioPreview.style.display = 'none';
                 myOutputText.textContent = 'Webcam active. Click "Capture Image" to continue.';
                 myImageBlob = null;
