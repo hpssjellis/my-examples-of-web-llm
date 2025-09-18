@@ -153,6 +153,7 @@
         const result = await myTranslator.translate(text);
         myStopTimer('Translation complete.');
         document.getElementById('myOutput').textContent = result;
+        document.getElementById('myTextInput').textContent = result;
       } catch (err) {
         myStopTimer('Error during translation: ' + (err.message || err));
         document.getElementById('myOutput').textContent = '';
