@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chrome AI Translator (Dropdown + Timer)</title>
+</head>
+<body>
+
+  <h3>Chrome AI Translator</h3>
+
+  <p>
+    Source: 
+    <select id="mySourceLang">
+      <option value="it">Italian</option>
+      <option value="en">English</option>
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+      <option value="pt">Portuguese</option>
+    </select>
+    → Target: 
+    <select id="myTargetLang">
+      <option value="en">English</option>
+      <option value="it">Italian</option>
+      <option value="fr">French</option>
+      <option value="es">Spanish</option>
+      <option value="de">German</option>
+      <option value="pt">Portuguese</option>
+    </select>
+  </p>
+
+  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here..."></textarea><br>
+
+  <input type="button" value="Translate" onclick="myHandleTranslateClick()">
+  <input type="button" value="Release Translator" onclick="myReleaseTranslator()">
+
+  <p><b>Translation:</b></p>
+  <div id="myOutput"></div>
+
+  <p><b>Status:</b></p>
+  <div id="myStatus" style="white-space:pre-wrap;"></div>
+
+  <script>
+    let myTranslator = null;
+    let myTimerInterval = null;
+
+    function mySetStatus(msg) {
+      const d = document.getElementById('myStatus');
+      d.textContent = msg;
+    }
+
+    function myStartTimer() {
+      let sec = 0;
+      mySetStatus("Working... 0s");
+      myTimerInterval = setInterval(() => {
+        sec++;
+        mySetStatus(`Working... ${sec}s`);
+      }, 1000);
+    }
+
+    function myStopTimer(msg) {
+      if (myTimerInterval) clearInterval(myTimerInterval);
+      myTimerInterval = null;
+      mySetStatus(msg);
+    }
+
+    async function myCreateTranslator(source, target) {
+      if (!('Translator' in self)) {
+        mySetStatus('Translator API not available in this browser.');
+        return null;
+      }
+
+      try {
+        mySetStatus(`Checking availability for ${source} → ${target}...`);
+        const avail = await Translator.availability({ sourceLanguage: source, targetLanguage: target });
+        mySetStatus(`Availability: ${avail}`);
+        if (avail === 'unavailable') return null;
+
+        mySetStatus(`Creating translator for ${source} → ${target}...`);
+        const translator = await Translator.create({
+          sourceLanguage: source,
+          targetLanguage: target,
+          monitor(m) {
+            m.addEventListener('downloadprogress', ev => {
+              const loaded = ev.loaded ?? 'unknown';
+              const total = ev.total ?? 'unknown';
+              mySetStatus(`Downloading model: ${loaded} / ${total} bytes`);
+            });
+          }
+        });
+        return translator;
+      } catch (err) {
+        mySetStatus('Error creating translator: ' + (err.message || err));
+        return null;
+      }
+    }
+
+    async function myHandleTranslateClick() {
+      const text = document.getElementById('myInput').value.trim();
+      if (!text) { mySetStatus('Type some text first.'); return; }
+
+      const source = document.getElementById('mySourceLang').value;
+      const target = document.getElementById('myTargetLang').value;
+
+      // If existing translator is for a different pair, release it
+      if (myTranslator && (myTranslator.sourceLanguage !== source || myTranslator.targetLanguage !== target)) {
+        await myReleaseTranslator();
+      }
+
+      if (!myTranslator) {
+        myTranslator = await myCreateTranslator(source, target);
+        if (!myTranslator) {
+          mySetStatus('Translator could not be created.');
+          return;
+        }
+      }
+
+      try {
+        myStartTimer();
+        const result = await myTranslator.translate(text);
+        myStopTimer('Translation complete.');
+        document.getElementById('myOutput').textContent = result;
+      } catch (err) {
+        myStopTimer('Error during translation: ' + (err.message || err));
+        document.getElementById('myOutput').textContent = '';
+      }
+    }
+
+    async function myReleaseTranslator() {
+      if (myTranslator) {
+        try {
+          if (typeof myTranslator.destroy === 'function') {
+            await myTranslator.destroy();
+          } else if (typeof myTranslator.close === 'function') {
+            await myTranslator.close();
+          }
+        } catch (err) {
+          mySetStatus('Error releasing translator: ' + (err.message || err));
+        }
+        myTranslator = null;
+        mySetStatus('Translator released.');
+      } else {
+        mySetStatus('No translator to release.');
+      }
+    }
+  </script>
+
+</body>
+</html>
