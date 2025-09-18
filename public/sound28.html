@@ -345,9 +345,10 @@
                 console.log('Description finished. Output is now on the page.');
 
                 console.log(myOutputText.innerHTML)
-                let myString = myOutputText.innerHTML;
-                let myRegex = /(?:##\s*Transcription\s*of\s*Audio:\s*")(.+)(?:".*)/;
-                let myResult = myString.replace(myRegex, "$1");
+               // let myString = myOutputText.innerHTML;
+               // let myRegex = /(?:##\s*Transcription\s*of\s*Audio:\s*")(.+)(?:".*)/;
+               // let myResult = myString.replace(myRegex, "$1");
+               document.getElementById('myInput').value =  myOutputText.innerHTML;
                 
                 console.log(myResult);
 
