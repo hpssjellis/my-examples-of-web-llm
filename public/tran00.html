@@ -29,17 +29,25 @@
     </select>
   </p>
 
-  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here..."></textarea><br>
+  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Oggi è davvero una bella giornata</textarea><br>
 
   <input type="button" value="Translate" onclick="myHandleTranslateClick()">
   <input type="button" value="Release Translator" onclick="myReleaseTranslator()">
 
-  <p><b>Translation:</b></p>
-  <div id="myOutput"></div>
-
   <p><b>Status:</b></p>
   <div id="myStatus" style="white-space:pre-wrap;"></div>
 
+  <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
+<div>
+        <label for="myVoiceSelect">Choose a voice:</label>
+        <select id="myVoiceSelect"></select>
+    </div>
+    <br>
+    
+    <button id="mySpeakButton">Speak Text</button>
+    
+    <p id="myStatusMessage"></p>
+    
   <script>
     let myTranslator = null;
     let myTimerInterval = null;
@@ -119,7 +127,8 @@
         myStartTimer();
         const result = await myTranslator.translate(text);
         myStopTimer('Translation complete.');
-        document.getElementById('myOutput').textContent = result;
+        document.getElementById('myOutput').value = result;
+      //   document.getElementById('myTextInput').value = result;
       } catch (err) {
         myStopTimer('Error during translation: ' + (err.message || err));
         document.getElementById('myOutput').textContent = '';
@@ -143,7 +152,78 @@
         mySetStatus('No translator to release.');
       }
     }
+
+
+      // to speak 
+      
+      // Use descriptive names and camelCase
+      const myTextInput = document.getElementById("myOutput");
+      const mySpeakButton = document.getElementById("mySpeakButton");
+      const myStatusMessage = document.getElementById("myStatusMessage");
+      const myVoiceSelect = document.getElementById("myVoiceSelect");
+
+      // Function to populate the voice dropdown
+      const myPopulateVoiceList = () => {
+          const myVoices = window.speechSynthesis.getVoices();
+          // Clear the voice select dropdown first
+          myVoiceSelect.innerHTML = '';
+          
+          myVoices.forEach(voice => {
+              const option = document.createElement('option');
+              option.textContent = voice.name + ' (' + voice.lang + ')';
+              option.setAttribute('data-lang', voice.lang);
+              option.setAttribute('data-name', voice.name);
+              option.value = voice.name;
+              myVoiceSelect.appendChild(option);
+          });
+      };
+
+      // Listen for when the browser loads the voices
+      // This is a necessary step because voices are loaded asynchronously
+      window.speechSynthesis.addEventListener('voiceschanged', myPopulateVoiceList);
+
+      // Initial population if voices are already loaded
+      myPopulateVoiceList();
+
+      // Define the function
+      const mySpeakFunction = () => {
+          if ('speechSynthesis' in window) {
+              const myTextToSpeak = myTextInput.value;
+              const mySelectedVoiceName = myVoiceSelect.value;
+              const mySelectedVoice = window.speechSynthesis.getVoices().find(voice => voice.name === mySelectedVoiceName);
+
+              if (myTextToSpeak.trim() === '') {
+                  myStatusMessage.textContent = 'Please enter some text to speak.';
+                  return;
+              }
+
+              const myUtterance = new SpeechSynthesisUtterance(myTextToSpeak);
+              myUtterance.voice = mySelectedVoice;
+
+              // Set a simple status message while speaking
+              myStatusMessage.textContent = 'Speaking...';
+              
+              myUtterance.onend = () => {
+                  myStatusMessage.textContent = 'Finished speaking.';
+              };
+
+              myUtterance.onerror = (event) => {
+                  myStatusMessage.textContent = 'An error occurred: ' + event.error;
+              };
+
+              window.speechSynthesis.speak(myUtterance);
+
+          } else {
+              myStatusMessage.textContent = 'Sorry, your browser does not support the Web Speech API.';
+          }
+      };
+
+      // Static link to the function on the button
+      mySpeakButton.onclick = mySpeakFunction;
+      
   </script>
+
+
 
 </body>
 </html>
