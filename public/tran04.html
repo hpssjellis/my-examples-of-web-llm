@@ -38,7 +38,7 @@
   <div id="myStatus" style="white-space:pre-wrap;"></div>
 
   <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
-
+  <textarea id="myTextInput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
 
    <h1 id="myTitle">My Simple Speech App</h1>
     <p>Type some text and press the button to hear it spoken out loud.</p>
@@ -46,7 +46,7 @@
     <div>
         <label for="myLanguageSelect">Choose a language:</label>
         <select id="myLanguageSelect">
-            <option value="en-US" >English (United States)</option>
+            <option value="en-US" data-starting-text="Hello World">English (United States)</option>
             <option value="es-ES" data-starting-text="Hola Mundo">Spanish (Spain)</option>
             <option value="fr-FR" data-starting-text="Bonjour le monde">French (France)</option>
             <option value="de-DE" data-starting-text="Hallo Welt">German (Germany)</option>
@@ -181,7 +181,7 @@
      // to speak 
     
         // Use descriptive names and camelCase
-        const myTextInput = document.getElementById("myOutput");
+        const myTextInput = document.getElementById("myTextInput");
         const mySpeakButton = document.getElementById("mySpeakButton");
         const myStatusMessage = document.getElementById("myStatusMessage");
         const myLanguageSelect = document.getElementById("myLanguageSelect");
