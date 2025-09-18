@@ -130,7 +130,7 @@
   <p><b>Status:</b></p>
   <div id="myStatus" style="white-space:pre-wrap;"></div>
 
-  <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
+  <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here...">Hello How are you?</textarea><br>
 <div>
         <label for="myVoiceSelect">Choose a voice:</label>
         <select id="myVoiceSelect"></select>
@@ -1141,6 +1141,7 @@ async function myExecutePrompt() {
                // let myResult = myString.replace(myRegex, "$1");
                // console.log(myResult);
                document.getElementById('myInput').value =  myOutputText.innerHTML;
+               document.getElementById('myOutput').value =  myOutputText.innerHTML;
                 
 
 
