@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebLLM Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .container {
+            max-width: 800px;
+        }
+
+        .code-container {
+            background-color: #1f2937;
+            color: #d1d5db;
+            font-family: monospace;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+
+        .code-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .code-container::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 4px;
+        }
+
+        .prompt-input-group textarea {
+            min-height: 100px;
+        }
+
+        .disabled-button {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #outputContainer {
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #renderedContent iframe {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+        }
+
+        .message-bubble {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.5rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.user {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.5rem;
+        }
+
+        .message-bubble.model {
+            background-color: #4f46e5;
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 sm:p-12">
+    <div class="container mx-auto bg-white rounded-3xl shadow-2xl p-6 md:p-12 space-y-8">
+        <header class="text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                WebLLM Demo
+            </h1>
+            <p class="text-lg text-gray-600">
+                A showcase of Gemini Nano running locally in the browser.
+            </p>
+        </header>
+
+        <section class="space-y-6">
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                    Get Started: Enable Flags in Chrome
+                </h2>
+                <p class="text-gray-600 mb-4">
+                    For this demo to work, you need to enable the following experimental flags in your Chrome browser.
+                </p>
+                <div class="code-container">
+                    <p>chrome://flags/#enable-document-ai-api</p>
+                    <p>chrome://flags/#prompt-api-for-gemini-nano</p>
+                </div>
+                <p class="text-gray-600 mt-4">
+                    Paste these URLs into your Chrome address bar, enable the flags, and restart your browser.
+                </p>
+            </div>
+        </section>
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">
+                Language Model API
+            </h2>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="checkLanguageModelButton" class="w-full sm:w-1/2 bg-blue-600 text-white py-3 px-6 rounded-full font-bold transition-transform hover:scale-105 shadow-md">
+                    Check Language Model
+                </button>
+                <button id="createLanguageModelButton" class="w-full sm:w-1/2 bg-green-600 text-white py-3 px-6 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                    Create Language Model Session
+                </button>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Prompt Mode</h3>
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <button id="simplePromptButton" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-full font-bold">Simple</button>
+                    <button id="streamingPromptButton" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-full font-bold">Streaming</button>
+                    <button id="multimodalPromptButton" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-full font-bold">Multimodal</button>
+                </div>
+                <div id="simplePromptGroup" class="prompt-input-group space-y-4">
+                    <textarea id="simplePromptInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter your prompt..."></textarea>
+                    <button id="sendSimplePromptButton" class="w-full bg-indigo-600 text-white py-3 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                        Send Prompt
+                    </button>
+                </div>
+                <div id="streamingPromptGroup" class="prompt-input-group space-y-4 hidden">
+                    <textarea id="streamingPromptInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter your prompt for streaming..."></textarea>
+                    <button id="sendStreamingPromptButton" class="w-full bg-indigo-600 text-white py-3 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                        Start Streaming
+                    </button>
+                </div>
+                <div id="multimodalPromptGroup" class="prompt-input-group space-y-4 hidden">
+                    <textarea id="multimodalPromptInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter your prompt for multimodal..."></textarea>
+                    <div class="flex space-x-4 mb-4">
+                        <input type="file" id="imageInput" accept="image/*" class="w-1/2 p-2 border rounded-xl">
+                        <button id="imagePromptButton" class="w-1/2 bg-yellow-500 text-white py-2 rounded-full font-bold disabled-button">
+                            Prompt with Image
+                        </button>
+                    </div>
+                    <div class="flex space-x-4">
+                        <input type="file" id="audioInput" accept="audio/*" class="w-1/2 p-2 border rounded-xl">
+                        <button id="audioPromptButton" class="w-1/2 bg-yellow-500 text-white py-2 rounded-full font-bold disabled-button">
+                            Prompt with Audio
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="outputContainer" class="bg-gray-100 p-4 rounded-xl border border-gray-300">
+                <p class="text-gray-500 text-sm">Output will appear here...</p>
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-300 my-8">
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">
+                Proofreader API
+            </h2>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="checkProofreaderButton" class="w-full sm:w-1/2 bg-blue-600 text-white py-3 px-6 rounded-full font-bold transition-transform hover:scale-105 shadow-md">
+                    Check Proofreader
+                </button>
+                <button id="createProofreaderButton" class="w-full sm:w-1/2 bg-green-600 text-white py-3 px-6 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                    Create Proofreader Session
+                </button>
+            </div>
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <textarea id="proofreaderInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter text to proofread..."></textarea>
+                <button id="proofreadButton" class="w-full bg-purple-600 text-white py-3 mt-4 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                    Proofread Text
+                </button>
+                <div id="proofreaderOutput" class="mt-4 p-4 rounded-xl bg-gray-100 border border-gray-300 hidden"></div>
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-300 my-8">
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">
+                AI Translator
+            </h2>
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <select id="sourceLang" class="w-full p-3 border rounded-xl mb-4">
+                    <option value="en-US">English</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="de-DE">German</option>
+                </select>
+                <textarea id="translatorInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter text to translate..."></textarea>
+                <button id="translateButton" class="w-full bg-red-500 text-white py-3 mt-4 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                    Translate
+                </button>
+                <div id="translatorOutput" class="mt-4 p-4 rounded-xl bg-gray-100 border border-gray-300 hidden"></div>
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-300 my-8">
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">
+                Text-to-Speech
+            </h2>
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <textarea id="ttsInput" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="Enter text for speech synthesis..."></textarea>
+                <button id="ttsButton" class="w-full bg-teal-500 text-white py-3 mt-4 rounded-full font-bold transition-transform hover:scale-105 shadow-md disabled-button">
+                    Generate Speech
+                </button>
+            </div>
+        </section>
+
+        <hr class="border-t border-gray-300 my-8">
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">
+                HTML Renderer
+            </h2>
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <p class="text-gray-600 mb-4">
+                    Use the prompt "generate a small html page with the following content..." and the output will be rendered below.
+                </p>
+                <div id="renderedContent" class="mt-4"></div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkLanguageModelButton = document.getElementById('checkLanguageModelButton');
+            const createLanguageModelButton = document.getElementById('createLanguageModelButton');
+            const simplePromptButton = document.getElementById('simplePromptButton');
+            const streamingPromptButton = document.getElementById('streamingPromptButton');
+            const multimodalPromptButton = document.getElementById('multimodalPromptButton');
+            const sendSimplePromptButton = document.getElementById('sendSimplePromptButton');
+            const sendStreamingPromptButton = document.getElementById('sendStreamingPromptButton');
+            const imagePromptButton = document.getElementById('imagePromptButton');
+            const audioPromptButton = document.getElementById('audioPromptButton');
+            const outputContainer = document.getElementById('outputContainer');
+            const simplePromptGroup = document.getElementById('simplePromptGroup');
+            const streamingPromptGroup = document.getElementById('streamingPromptGroup');
+            const multimodalPromptGroup = document.getElementById('multimodalPromptGroup');
+            const simplePromptInput = document.getElementById('simplePromptInput');
+            const streamingPromptInput = document.getElementById('streamingPromptInput');
+            const multimodalPromptInput = document.getElementById('multimodalPromptInput');
+            const imageInput = document.getElementById('imageInput');
+            const audioInput = document.getElementById('audioInput');
+            const checkProofreaderButton = document.getElementById('checkProofreaderButton');
+            const createProofreaderButton = document.getElementById('createProofreaderButton');
+            const proofreaderInput = document.getElementById('proofreaderInput');
+            const proofreadButton = document.getElementById('proofreadButton');
+            const proofreaderOutput = document.getElementById('proofreaderOutput');
+            const translatorInput = document.getElementById('translatorInput');
+            const sourceLangSelect = document.getElementById('sourceLang');
+            const translateButton = document.getElementById('translateButton');
+            const translatorOutput = document.getElementById('translatorOutput');
+            const ttsInput = document.getElementById('ttsInput');
+            const ttsButton = document.getElementById('ttsButton');
+            const renderedContent = document.getElementById('renderedContent');
+
+            let languageModelSession = null;
+            let proofreaderModelSession = null;
+            let currentPromptMode = 'simple';
+
+            function updateUI() {
+                createLanguageModelButton.disabled = !('ai' in navigator && 'canCreateLanguageModel' in navigator.ai);
+                createLanguageModelButton.classList.toggle('disabled-button', createLanguageModelButton.disabled);
+                sendSimplePromptButton.disabled = !languageModelSession;
+                sendSimplePromptButton.classList.toggle('disabled-button', sendSimplePromptButton.disabled);
+                sendStreamingPromptButton.disabled = !languageModelSession;
+                sendStreamingPromptButton.classList.toggle('disabled-button', sendStreamingPromptButton.disabled);
+                imagePromptButton.disabled = !languageModelSession;
+                imagePromptButton.classList.toggle('disabled-button', imagePromptButton.disabled);
+                audioPromptButton.disabled = !languageModelSession;
+                audioPromptButton.classList.toggle('disabled-button', audioPromptButton.disabled);
+                createProofreaderButton.disabled = !('ai' in navigator && 'canCreateProofreaderModel' in navigator.ai);
+                createProofreaderButton.classList.toggle('disabled-button', createProofreaderButton.disabled);
+                proofreadButton.disabled = !proofreaderModelSession;
+                proofreadButton.classList.toggle('disabled-button', proofreadButton.disabled);
+                translateButton.disabled = !languageModelSession;
+                translateButton.classList.toggle('disabled-button', translateButton.disabled);
+                ttsButton.disabled = !('ai' in navigator && 'canCreateTextToSpeechModel' in navigator.ai);
+                ttsButton.classList.toggle('disabled-button', ttsButton.disabled);
+            }
+
+            async function checkLanguageModel() {
+                try {
+                    const result = await navigator.ai.canCreateLanguageModel();
+                    outputContainer.textContent = `Language Model API availability: ${result}`;
+                    if (result === 'readily' || result === 'after-download') {
+                        createLanguageModelButton.disabled = false;
+                        createLanguageModelButton.classList.remove('disabled-button');
+                    }
+                } catch (e) {
+                    outputContainer.textContent = `Error checking Language Model: ${e.message}`;
+                }
+            }
+
+            async function createLanguageModel() {
+                try {
+                    outputContainer.textContent = 'Creating language model session...';
+                    languageModelSession = await navigator.ai.createLanguageModel();
+                    outputContainer.textContent = 'Language model session created successfully!';
+                    updateUI();
+                } catch (e) {
+                    outputContainer.textContent = `Error creating Language Model: ${e.message}`;
+                    languageModelSession = null;
+                }
+            }
+
+            async function sendSimplePrompt() {
+                if (!languageModelSession) return;
+                const prompt = simplePromptInput.value.trim();
+                if (!prompt) return;
+
+                outputContainer.innerHTML = 'Thinking...';
+                try {
+                    const result = await languageModelSession.prompt(prompt);
+                    displayResponse(result, prompt);
+                } catch (e) {
+                    outputContainer.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            async function sendStreamingPrompt() {
+                if (!languageModelSession) return;
+                const prompt = streamingPromptInput.value.trim();
+                if (!prompt) return;
+
+                outputContainer.innerHTML = '';
+                try {
+                    const stream = await languageModelSession.promptStreaming(prompt);
+                    let fullResponse = '';
+                    for await (const chunk of stream) {
+                        fullResponse += chunk;
+                        outputContainer.textContent = fullResponse;
+                    }
+                    displayResponse(fullResponse, prompt, 'streaming');
+                } catch (e) {
+                    outputContainer.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            async function sendMultimodalPrompt() {
+                if (!languageModelSession) return;
+                const prompt = multimodalPromptInput.value.trim();
+                const file = imageInput.files[0] || audioInput.files[0];
+                if (!prompt || !file) {
+                    outputContainer.textContent = 'Please enter a prompt and select an image or audio file.';
+                    return;
+                }
+
+                outputContainer.innerHTML = 'Processing multimodal prompt...';
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const input = {
+                        text: prompt,
+                        image: file.type.startsWith('image/') ? new Blob([buffer], { type: file.type }) : undefined,
+                        audio: file.type.startsWith('audio/') ? new Blob([buffer], { type: file.type }) : undefined,
+                    };
+                    const result = await languageModelSession.prompt(input);
+                    displayResponse(result, prompt);
+                } catch (e) {
+                    outputContainer.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            function displayResponse(response, prompt, type = 'simple') {
+                const isHTML = response.trim().startsWith('<');
+                if (isHTML) {
+                    renderHTML(response);
+                    outputContainer.innerHTML = `<div class="message-bubble user">${prompt}</div><div class="message-bubble model">HTML generated and rendered below!</div>`;
+                } else {
+                    const userMessage = `<div class="message-bubble user">${prompt}</div>`;
+                    const modelMessage = `<div class="message-bubble model">${response}</div>`;
+                    outputContainer.innerHTML = userMessage + modelMessage;
+                    renderedContent.innerHTML = '';
+                }
+            }
+
+            function renderHTML(htmlString) {
+                const iframe = document.createElement('iframe');
+                renderedContent.innerHTML = '';
+                renderedContent.appendChild(iframe);
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(htmlString);
+                doc.close();
+            }
+
+            async function checkProofreader() {
+                try {
+                    const result = await navigator.ai.canCreateProofreaderModel();
+                    outputContainer.textContent = `Proofreader API availability: ${result}`;
+                    if (result === 'readily' || result === 'after-download') {
+                        createProofreaderButton.disabled = false;
+                        createProofreaderButton.classList.remove('disabled-button');
+                    }
+                } catch (e) {
+                    outputContainer.textContent = `Error checking Proofreader: ${e.message}`;
+                }
+            }
+
+            async function createProofreader() {
+                try {
+                    outputContainer.textContent = 'Creating proofreader model session...';
+                    proofreaderModelSession = await navigator.ai.createProofreaderModel();
+                    outputContainer.textContent = 'Proofreader model session created successfully!';
+                    updateUI();
+                } catch (e) {
+                    outputContainer.textContent = `Error creating Proofreader: ${e.message}`;
+                    proofreaderModelSession = null;
+                }
+            }
+
+            async function proofreadText() {
+                if (!proofreaderModelSession) return;
+                const text = proofreaderInput.value;
+                if (!text) {
+                    proofreaderOutput.textContent = 'Please enter text to proofread.';
+                    return;
+                }
+                proofreaderOutput.textContent = 'Proofreading...';
+                proofreaderOutput.classList.remove('hidden');
+                try {
+                    const result = await proofreaderModelSession.proofread(text);
+                    proofreaderOutput.textContent = result.proofread;
+                } catch (e) {
+                    proofreaderOutput.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            async function translateText() {
+                if (!languageModelSession) return;
+                const text = translatorInput.value;
+                const sourceLang = sourceLangSelect.value;
+                if (!text) {
+                    translatorOutput.textContent = 'Please enter text to translate.';
+                    translatorOutput.classList.remove('hidden');
+                    return;
+                }
+                translatorOutput.textContent = 'Translating...';
+                translatorOutput.classList.remove('hidden');
+                try {
+                    const result = await languageModelSession.prompt(`Translate the following text from ${sourceLang} to English: "${text}"`);
+                    translatorOutput.textContent = result;
+                } catch (e) {
+                    translatorOutput.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            async function generateSpeech() {
+                const text = ttsInput.value;
+                if (!text) {
+                    outputContainer.textContent = 'Please enter text for speech synthesis.';
+                    return;
+                }
+                try {
+                    outputContainer.textContent = 'Generating speech...';
+                    const audio = await navigator.ai.createTextToSpeech(text);
+                    const audioUrl = URL.createObjectURL(audio);
+                    const audioElement = new Audio(audioUrl);
+                    audioElement.play();
+                    outputContainer.textContent = 'Speech generated and playing!';
+                } catch (e) {
+                    outputContainer.textContent = `Error generating speech: ${e.message}`;
+                }
+            }
+
+            simplePromptButton.addEventListener('click', () => {
+                currentPromptMode = 'simple';
+                simplePromptGroup.classList.remove('hidden');
+                streamingPromptGroup.classList.add('hidden');
+                multimodalPromptGroup.classList.add('hidden');
+            });
+
+            streamingPromptButton.addEventListener('click', () => {
+                currentPromptMode = 'streaming';
+                simplePromptGroup.classList.add('hidden');
+                streamingPromptGroup.classList.remove('hidden');
+                multimodalPromptGroup.classList.add('hidden');
+            });
+
+            multimodalPromptButton.addEventListener('click', () => {
+                currentPromptMode = 'multimodal';
+                simplePromptGroup.classList.add('hidden');
+                streamingPromptGroup.classList.add('hidden');
+                multimodalPromptGroup.classList.remove('hidden');
+            });
+
+            checkLanguageModelButton.addEventListener('click', checkLanguageModel);
+            createLanguageModelButton.addEventListener('click', createLanguageModel);
+            sendSimplePromptButton.addEventListener('click', sendSimplePrompt);
+            sendStreamingPromptButton.addEventListener('click', sendStreamingPrompt);
+            imagePromptButton.addEventListener('click', sendMultimodalPrompt);
+            audioPromptButton.addEventListener('click', sendMultimodalPrompt);
+            checkProofreaderButton.addEventListener('click', checkProofreader);
+            createProofreaderButton.addEventListener('click', createProofreader);
+            proofreadButton.addEventListener('click', proofreadText);
+            translateButton.addEventListener('click', translateText);
+            ttsButton.addEventListener('click', generateSpeech);
+
+            updateUI();
+        });
+    </script>
+</body>
+</html>
