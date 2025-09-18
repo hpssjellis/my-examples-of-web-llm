@@ -29,14 +29,15 @@
     </select>
   </p>
 
-  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Oggi è davvero una bella giornata</textarea><textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
+  <textarea id="myInput" rows="6" cols="70" placeholder="Type text here...">Oggi è davvero una bella giornata</textarea><br>
 
   <input type="button" value="Translate" onclick="myHandleTranslateClick()">
   <input type="button" value="Release Translator" onclick="myReleaseTranslator()">
 
-
   <p><b>Status:</b></p>
   <div id="myStatus" style="white-space:pre-wrap;"></div>
+
+  <textarea id="myOutput" rows="6" cols="70" placeholder="Translation here..."></textarea><br>
 
 
    <h1 id="myTitle">My Simple Speech App</h1>
@@ -60,7 +61,7 @@
     </div>
     <br>
     
-    <textarea id="myTextInput" rows="4" cols="50"></textarea>
+
     <br><br>
     <button id="mySpeakButton">Speak Text</button>
     
@@ -180,7 +181,7 @@
      // to speak 
     
         // Use descriptive names and camelCase
-        const myTextInput = document.getElementById("myTextInput");
+        const myTextInput = document.getElementById("myOutput");
         const mySpeakButton = document.getElementById("mySpeakButton");
         const myStatusMessage = document.getElementById("myStatusMessage");
         const myLanguageSelect = document.getElementById("myLanguageSelect");
