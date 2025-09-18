@@ -263,7 +263,17 @@
 
                 const myContentType = myImageBlob ? 'image' : 'audio';
                 const myContentValue = myImageBlob || myAudioBlob;
-                const myPromptValue = `Describe this ${myContentType} as completely as you can`;
+                console.log('myContentType');
+                console.log(myContentType);
+                console.log('myContentValue');
+                console.log(myContentValue);
+
+                if (myContentType === 'image' ){
+                  const myPromptValue = `Describe this ${myContentType} as completely as you can`;
+                } else {
+                  const myPromptValue = `Transcribe this ${myContentType} as completely as you can`;                
+                }
+                
 
                 // Log the prompt being sent to the model
                 console.log(`Sending prompt to the model: "${myPromptValue}"`);
