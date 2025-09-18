@@ -344,6 +344,13 @@
                 // Log when the description is finished
                 console.log('Description finished. Output is now on the page.');
 
+
+                myString = myOutputText;
+                myRegex = /(?:##\s*Transcription\s*of\s*Audio:\s*")(.+)(?:".*)/;
+                myResult = myString.replace(myRegex, "$1");
+                
+                console.log(myResult);
+
             } catch (error) {
                 clearInterval(myTimerId);
                 clearInterval(myAnalysisTimerId);
