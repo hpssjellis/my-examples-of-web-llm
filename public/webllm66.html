@@ -51,6 +51,10 @@
             <button id="myPrepRewriteBtn" onclick="myPreparePrompt('rewrite')">Prepare Rewrite Text</button>
             <button id="myPrepProofreadBtn" onclick="myPreparePrompt('proofread')">Prepare Proofread Text</button>
         </div>
+
+
+
+        
         <h3>Edit Prompt:</h3>
         <div id="myMultiDiv" style="display:none">
             <p>Select an image or audio file, or use your webcam/mic to capture media, to describe it using the Language Model API.</p>
@@ -64,6 +68,7 @@
             <button id="myStopRecordingButton" onclick="myStopAudioRecording()" style="display: none;">Stop Mic Recording</button>
             <audio id="myAudioPreview" controls style="display: none;"></audio>
             <hr>
+            Prompt (optional) <textarea id="myAudioImagePrompt" rows=2 cols=80>...</textarea>
             <button id="myDescribeButton" style="background-color:lime;" onclick="myStartDescription()">Transcribe and/or Describe Media</button>
             <button id="myStopButton" onclick="myStopDescription()" style="display: none;">Stop Description</button>
             <div id="myStatus">Status here</div>
@@ -963,10 +968,21 @@ or write your own HTML and view it"></textarea>
                 console.log(myContentType);
                 console.log('myContentValue');
                 console.log(myContentValue);
-                let myPromptValue = `Transcribe this ${myContentType} quickly`; // default sound
-                if (myContentType === 'image') {
-                    myPromptValue = `Output text recognition of this ${myContentType} and then fully describe the image.`; // switch for image
+
+
+
+                 let myPromptValue = ''
+                if (document.getElementById('myAudioImagePrompt').value.length === 0 ){
+                    myPromptValue = `Transcribe this ${myContentType} quickly`; // default sound
+                    if (myContentType === 'image') {
+                        myPromptValue = `Output text recognition of this ${myContentType} and then fully describe the image.`; // switch for image
+                    }
+                    document.getElementById('myAudioImagePrompt').value = myPromptValue   // show the prompt on the webpage
+                } else {
+                    myPromptValue = document.getElementById('myAudioImagePrompt').value
                 }
+
+                
                 // Log the prompt being sent to the model
                 console.log(`Sending prompt to the model: "${myPromptValue}"`);
                 const myStream = mySession.promptStreaming([{
