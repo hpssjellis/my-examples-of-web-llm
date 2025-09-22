@@ -45,7 +45,7 @@
         <div class="button-group">
             <button id="myPrepSimplePromptBtn" onclick="myPreparePrompt('simple')">Prepare Simple Prompt</button>
             <button id="myPrepStreamPromptBtn" onclick="myPreparePrompt('streaming')">Prepare Streaming Prompt</button>
-            <button id="myPrepMultimodalPromptBtn" onclick="myPreparePrompt('multimodal')">Prepare Multimodal Prompt (Text Only)</button>
+            <button id="myPrepMultimodalPromptBtn" onclick="myPreparePrompt('multimodal')">Prepare Multimodal Prompt</button>
             <button id="myPrepSummarizeBtn" onclick="myPreparePrompt('summarize')">Prepare Summarize Text</button>
             <button id="myPrepWriteBtn" onclick="myPreparePrompt('write')">Prepare Write Content</button>
             <button id="myPrepRewriteBtn" onclick="myPreparePrompt('rewrite')">Prepare Rewrite Text</button>
@@ -68,7 +68,8 @@
             <button id="myStopRecordingButton" onclick="myStopAudioRecording()" style="display: none;">Stop Mic Recording</button>
             <audio id="myAudioPreview" controls style="display: none;"></audio>
             <hr>
-            Prompt (optional) <textarea id="myAudioImagePrompt" rows=2 cols=80></textarea>Note: Audio needs a fairly good windows computer!<br>
+            Prompt (optional) <textarea id="myAudioImagePrompt" rows=2 cols=80></textarea><br>
+            Note: Audio needs a fairly good windows computer!<br>
             <button id="myDescribeButton" style="background-color:lime;" onclick="myStartDescription()">Transcribe and/or Describe Media</button>
             <button id="myStopButton" onclick="myStopDescription()" style="display: none;">Stop Description</button>
             <div id="myStatus">Status here</div>
@@ -795,6 +796,7 @@ or write your own HTML and view it"></textarea>
        // let myMaxMilliSec = 30000;
         // Image file selection handler
         myImageInput.onchange = async (event) => {
+            document.getElementById('myAudioImagePrompt').value = ''  // blank prompt for safety
             const myFile = event.target.files[0];
             if (myFile) {
                 myImageBlob = myFile;
@@ -810,6 +812,7 @@ or write your own HTML and view it"></textarea>
         };
         // Audio file selection handler
         myAudioInput.onchange = async (event) => {
+            document.getElementById('myAudioImagePrompt').value = ''  // blank prompt for safety
             const myFile = event.target.files[0];
             if (myFile) {
                 myAudioBlob = myFile;
@@ -825,6 +828,7 @@ or write your own HTML and view it"></textarea>
         };
         // Start webcam functionality
         window.myStartWebcam = async () => {
+            document.getElementById('myAudioImagePrompt').value = ''  // blank prompt for safety
             try {
                 const myStream = await navigator.mediaDevices.getUserMedia({
                     video: true
@@ -978,7 +982,7 @@ or write your own HTML and view it"></textarea>
                     }
                     document.getElementById('myAudioImagePrompt').value = myPromptValue   // show the prompt on the webpage
                 } else {
-                    myPromptValue = document.getElementById('myAudioImagePrompt').value
+                    myPromptValue = document.getElementById('myAudioImagePrompt').value 
                 }
 
                 
